@@ -1,0 +1,6 @@
+{
+  "name": "MM Assistant",
+  "description": "Zero-touch, real-time voice assistant with a confident and sassy persona, background wake-word listening, continuous audio streaming, and deep device tool execution.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

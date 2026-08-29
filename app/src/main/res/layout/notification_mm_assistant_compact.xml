@@ -1,0 +1,81 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:background="@drawable/bg_notification_card"
+    android:gravity="center_vertical"
+    android:orientation="horizontal"
+    android:padding="12dp">
+
+    <!-- Visual Pulse Orb / State Indicator -->
+    <FrameLayout
+        android:id="@+id/pulse_indicator_container"
+        android:layout_width="40dp"
+        android:layout_height="40dp"
+        android:background="@drawable/bg_pulse_listening">
+
+        <ImageView
+            android:id="@+id/pulse_indicator_icon"
+            android:layout_width="22dp"
+            android:layout_height="22dp"
+            android:layout_gravity="center"
+            android:contentDescription="Assistant State"
+            android:src="@drawable/ic_notification_listening" />
+    </FrameLayout>
+
+    <LinearLayout
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:layout_marginStart="12dp"
+        android:layout_weight="1"
+        android:orientation="vertical">
+
+        <TextView
+            android:id="@+id/notif_title"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="MM Voice Assistant"
+            android:textColor="#FFFFFF"
+            android:textSize="14sp"
+            android:textStyle="bold" />
+
+        <TextView
+            android:id="@+id/notif_status_badge"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="2dp"
+            android:text="🟢 Actively Listening for 'MM'"
+            android:textColor="#00E5FF"
+            android:textSize="12sp" />
+    </LinearLayout>
+
+    <!-- Quick Privacy Shield Toggle Button -->
+    <TextView
+        android:id="@+id/btn_compact_privacy"
+        android:layout_width="wrap_content"
+        android:layout_height="36dp"
+        android:layout_marginEnd="6dp"
+        android:background="@drawable/bg_notification_btn"
+        android:gravity="center"
+        android:paddingStart="10dp"
+        android:paddingEnd="10dp"
+        android:text="🛡️ Privacy"
+        android:textColor="#C7BBE6"
+        android:textSize="12sp"
+        android:textStyle="bold" />
+
+    <!-- Quick Talk Trigger Button -->
+    <TextView
+        android:id="@+id/btn_compact_talk"
+        android:layout_width="wrap_content"
+        android:layout_height="36dp"
+        android:background="@drawable/bg_notification_btn"
+        android:gravity="center"
+        android:paddingStart="12dp"
+        android:paddingEnd="12dp"
+        android:text="🎙️ Talk"
+        android:textColor="#00E5FF"
+        android:textSize="12sp"
+        android:textStyle="bold" />
+
+</LinearLayout>
