@@ -1,0 +1,23 @@
+services:
+  android-build:
+    build:
+      context: .
+      dockerfile: Dockerfile.base44
+    container_name: mm-assistant-build
+    ports:
+      - "3000:3000"
+    volumes:
+      - .:/app
+      - gradle-cache:/opt/gradle-home
+      - android-sdk:/opt/android-sdk
+    environment:
+      - BASE44_PUBLIC_HOST_SUFFIX=${BASE44_PUBLIC_HOST_SUFFIX}
+    env_file:
+      - ./.env.base44-defaults
+      - /run/base44/app.env
+    stdin_open: true
+    tty: true
+
+volumes:
+  gradle-cache:
+  android-sdk:

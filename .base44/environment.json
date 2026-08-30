@@ -1,0 +1,12 @@
+{
+  "previewPort": 3000,
+  "healthPath": "/",
+  "startCommand": "docker compose -f docker-compose.base44.yml up -d --build",
+  "secrets": [
+    {
+      "name": "GEMINI_API_KEY",
+      "description": "Google Gemini API key for the Gemini Live voice API (gemini-2.0-flash-exp). Obtain from Google AI Studio (aistudio.google.com) → Get API Key. Required for the app's AI voice assistant functionality at runtime on a device; not needed to build/test.",
+      "requiredAtBoot": false
+    }
+  ]
+}

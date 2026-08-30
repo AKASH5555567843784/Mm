@@ -1,0 +1,39 @@
+FROM eclipse-temurin:17-jdk
+
+ENV ANDROID_HOME=/opt/android-sdk \
+    ANDROID_SDK_ROOT=/opt/android-sdk \
+    GRADLE_USER_HOME=/opt/gradle-home \
+    DEBIAN_FRONTEND=noninteractive
+
+# Install basic tools
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    unzip wget curl python3 ca-certificates git \
+    && rm -rf /var/lib/apt/lists/*
+
+# Download and install Android command-line tools
+RUN mkdir -p ${ANDROID_HOME}/cmdline-tools && \
+    wget -q https://dl.google.com/android/repository/commandlinetools-linux-11076708_latest.zip -O /tmp/cmdtools.zip && \
+    unzip -q /tmp/cmdtools.zip -d ${ANDROID_HOME}/cmdline-tools && \
+    mv ${ANDROID_HOME}/cmdline-tools/cmdline-tools ${ANDROID_HOME}/cmdline-tools/latest && \
+    rm /tmp/cmdtools.zip
+
+# Accept SDK licenses and install required components
+RUN yes | ${ANDROID_HOME}/cmdline-tools/latest/bin/sdkmanager --licenses > /dev/null 2>&1 && \
+    ${ANDROID_HOME}/cmdline-tools/latest/bin/sdkmanager \
+    "platform-tools" \
+    "platforms;android-36" \
+    "build-tools;36.0.0" \
+    > /dev/null 2>&1
+
+# Download Gradle 9.3.1 to generate the wrapper
+RUN wget -q https://services.gradle.org/distributions/gradle-9.3.1-bin.zip -O /tmp/gradle.zip && \
+    unzip -q /tmp/gradle.zip -d /opt && \
+    rm /tmp/gradle.zip && \
+    ln -s /opt/gradle-9.3.1/bin/gradle /usr/local/bin/gradle
+
+WORKDIR /app
+
+# Expose port for the status page
+EXPOSE 3000
+
+CMD ["bash", "/app/base44-start.sh"]
