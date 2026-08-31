@@ -20,6 +20,7 @@ import com.example.offline.LocalModelStorageManager
 import com.example.service.MMAssistantForegroundService
 import com.example.tools.DeviceToolManager
 import com.example.util.BatteryOptimizationHelper
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -28,6 +29,7 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.stateIn
+import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 
 class MMAssistantViewModel(application: Application) : AndroidViewModel(application) {
@@ -50,6 +52,11 @@ class MMAssistantViewModel(application: Application) : AndroidViewModel(applicat
     // Manual Force Offline override toggle
     private val _forceOfflineMode = MutableStateFlow(false)
     val forceOfflineMode: StateFlow<Boolean> = _forceOfflineMode.asStateFlow()
+
+    // Preferences & First-Launch Onboarding overlay state
+    private val appPrefs = context.getSharedPreferences("mm_assistant_prefs", Context.MODE_PRIVATE)
+    private val _showOnboardingOverlay = MutableStateFlow(!appPrefs.getBoolean("has_seen_first_launch_onboarding", false))
+    val showOnboardingOverlay: StateFlow<Boolean> = _showOnboardingOverlay.asStateFlow()
 
     // Permissions onboarding state
     private val _showPermissionsDialog = MutableStateFlow(false)
@@ -93,7 +100,7 @@ class MMAssistantViewModel(application: Application) : AndroidViewModel(applicat
     private val _localActiveTool = MutableStateFlow<ToolCallInfo?>(null)
     val activeToolCall: StateFlow<ToolCallInfo?> = _localActiveTool.asStateFlow()
 
-    private val _localSassyQuote = MutableStateFlow("Hey handsome! MM is ready to take over your phone.")
+    private val _localSassyQuote = MutableStateFlow("Hello Boss! MM is ready to take over your phone.")
     val sassyOneLiner: StateFlow<String> = _localSassyQuote.asStateFlow()
 
     // Sassy Mood & Visual Theme State Manager
@@ -129,18 +136,160 @@ class MMAssistantViewModel(application: Application) : AndroidViewModel(applicat
     // Sassy prompt suggestions for fast voice interaction
     val quickVoiceSuggestions = listOf(
         "Hello MM",
-        "Bye MM (Standby)",
+        "MM Unlock My Phone",
+        "Lock Phone",
+        "Lock WhatsApp",
+        "Lock Instagram",
+        "Hide App (Stealth)",
+        "Show Locked Apps",
         "Lock PC",
-        "Open VS Code on PC",
+        "Open YouTube",
         "Who created you?",
         "Which country made you?",
-        "Open YouTube",
-        "Set Night Mode Volume",
-        "Telegram message Boss",
+        "Bye MM (Standby)",
         "Call Mom",
         "Turn on Flashlight",
         "Check Battery Status"
     )
+
+    // Device Screen Lock & Unlock Manager (PIN, Pattern, Password, Swipe)
+    val deviceLockUnlockManager = com.example.security.DeviceLockUnlockManager.getInstance(context)
+    val deviceLockType: StateFlow<com.example.security.DeviceLockType> = deviceLockUnlockManager.lockType
+    val deviceSavedCredential: StateFlow<String> = deviceLockUnlockManager.savedCredential
+    val isAutoVoiceUnlockEnabled: StateFlow<Boolean> = deviceLockUnlockManager.isAutoVoiceUnlockEnabled
+    val lastPhoneLockAction: StateFlow<String?> = deviceLockUnlockManager.lastAction
+    val isAccessibilityEnabled: StateFlow<Boolean> = deviceLockUnlockManager.isAccessibilityEnabled
+
+    // AI Intelligence, Model Architecture & Temperature Configuration
+    private val _selectedAiModel = MutableStateFlow(com.example.gemini.GeminiLiveClient.DEFAULT_MODEL)
+    val selectedAiModel: StateFlow<String> = _selectedAiModel.asStateFlow()
+
+    private val _temperature = MutableStateFlow(0.3f)
+    val temperature: StateFlow<Float> = _temperature.asStateFlow()
+
+    private val _isZeroFabricationEnabled = MutableStateFlow(true)
+    val isZeroFabricationEnabled: StateFlow<Boolean> = _isZeroFabricationEnabled.asStateFlow()
+
+    private val _isActionOrientedEnabled = MutableStateFlow(true)
+    val isActionOrientedEnabled: StateFlow<Boolean> = _isActionOrientedEnabled.asStateFlow()
+
+    fun updateAiModel(model: String) {
+        _selectedAiModel.value = model
+        MMAssistantForegroundService.activeServiceInstance?.geminiClient?.updateConfig(
+            model = model,
+            temp = _temperature.value
+        )
+        _localSassyQuote.value = "AI Model switched to ${model.substringAfterLast("/")}, Boss."
+    }
+
+    fun updateTemperature(temp: Float) {
+        val clamped = temp.coerceIn(0.0f, 1.0f)
+        _temperature.value = clamped
+        MMAssistantForegroundService.activeServiceInstance?.geminiClient?.updateConfig(
+            model = _selectedAiModel.value,
+            temp = clamped
+        )
+    }
+
+    fun toggleZeroFabrication(enabled: Boolean) {
+        _isZeroFabricationEnabled.value = enabled
+        _localSassyQuote.value = if (enabled) "Zero-Fabrication mode activated, Boss." else "Standard mode active, Boss."
+    }
+
+    fun toggleActionOriented(enabled: Boolean) {
+        _isActionOrientedEnabled.value = enabled
+    }
+
+    fun unlockPhone(overrideCredential: String? = null) {
+        val result = deviceLockUnlockManager.unlockPhone(overrideCredential)
+        _localSassyQuote.value = result.message
+        addLocalTranscript(LiveTranscript.Sender.SYSTEM, "🔓 ${result.message}", isTool = true)
+    }
+
+    fun lockPhone() {
+        val result = deviceLockUnlockManager.lockPhone()
+        _localSassyQuote.value = result.message
+        addLocalTranscript(LiveTranscript.Sender.SYSTEM, "🔒 ${result.message}", isTool = true)
+    }
+
+    fun saveDeviceCredentials(
+        type: com.example.security.DeviceLockType,
+        credential: String,
+        autoVoiceUnlock: Boolean = true
+    ) {
+        val result = deviceLockUnlockManager.saveCredentials(type, credential, autoVoiceUnlock)
+        _localSassyQuote.value = result.message
+        addLocalTranscript(LiveTranscript.Sender.SYSTEM, "🔑 ${result.message}", isTool = true)
+    }
+
+    fun clearDeviceCredentials() {
+        val result = deviceLockUnlockManager.clearCredentials()
+        _localSassyQuote.value = result.message
+        addLocalTranscript(LiveTranscript.Sender.SYSTEM, "🗑️ ${result.message}", isTool = true)
+    }
+
+    fun toggleAutoVoiceUnlock(enabled: Boolean) {
+        deviceLockUnlockManager.setAutoVoiceUnlockEnabled(enabled)
+    }
+
+    fun openAccessibilitySettings() {
+        deviceLockUnlockManager.openAccessibilitySettings()
+    }
+
+    fun refreshAccessibilityStatus() {
+        deviceLockUnlockManager.checkAccessibilityStatus()
+    }
+
+    // App Lock & Stealth Vault Manager
+    val appLockManager = com.example.security.AppLockManager.getInstance(context)
+    val lockedApps: StateFlow<Set<String>> = appLockManager.lockedApps
+    val hiddenApps: StateFlow<Set<String>> = appLockManager.hiddenApps
+    val isAssistantHidden: StateFlow<Boolean> = appLockManager.isAssistantHidden
+    val isAppLockEnabled: StateFlow<Boolean> = appLockManager.isAppLockEnabled
+    val masterPin: StateFlow<String> = appLockManager.masterPin
+    val lastSecurityAction: StateFlow<String?> = appLockManager.lastSecurityAction
+
+    fun lockApp(appName: String, pin: String? = null) {
+        val result = appLockManager.lockApp(appName, pin)
+        _localSassyQuote.value = result.message
+        addLocalTranscript(LiveTranscript.Sender.SYSTEM, "🔒 ${result.message}", isTool = true)
+    }
+
+    fun unlockApp(appName: String, pin: String? = null) {
+        val result = appLockManager.unlockApp(appName, pin)
+        _localSassyQuote.value = result.message
+        addLocalTranscript(LiveTranscript.Sender.SYSTEM, "🔓 ${result.message}", isTool = true)
+    }
+
+    fun hideApp(appName: String) {
+        val result = appLockManager.hideApp(appName)
+        _localSassyQuote.value = result.message
+        addLocalTranscript(LiveTranscript.Sender.SYSTEM, "👁️ ${result.message}", isTool = true)
+    }
+
+    fun unhideApp(appName: String) {
+        val result = appLockManager.unhideApp(appName)
+        _localSassyQuote.value = result.message
+        addLocalTranscript(LiveTranscript.Sender.SYSTEM, "✨ ${result.message}", isTool = true)
+    }
+
+    fun toggleAppLockEnabled(enabled: Boolean) {
+        appLockManager.setAppLockEnabled(enabled)
+    }
+
+    fun setMasterPin(pin: String): Boolean {
+        return appLockManager.setMasterPin(pin)
+    }
+
+    fun toggleAssistantStealth(hide: Boolean) {
+        val result = appLockManager.toggleAssistantLauncherVisibility(hide)
+        _localSassyQuote.value = result.message
+        addLocalTranscript(LiveTranscript.Sender.SYSTEM, "🥷 ${result.message}", isTool = true)
+    }
+
+    fun getAppDisplayName(packageName: String): String {
+        return appLockManager.getAppDisplayName(packageName)
+    }
 
     private var pollJob: Job? = null
 
@@ -180,29 +329,50 @@ class MMAssistantViewModel(application: Application) : AndroidViewModel(applicat
         _showPermissionsDialog.value = false
     }
 
+    fun dismissOnboardingOverlay() {
+        _showOnboardingOverlay.value = false
+        appPrefs.edit().putBoolean("has_seen_first_launch_onboarding", true).apply()
+    }
+
+    fun showOnboardingOverlay() {
+        _showOnboardingOverlay.value = true
+    }
+
     private fun startSyncLoop() {
         pollJob?.cancel()
-        pollJob = viewModelScope.launch {
-            while (true) {
+        pollJob = viewModelScope.launch(Dispatchers.Default) {
+            while (isActive) {
                 val isOnline = networkMonitor.isOnline.value && !_forceOfflineMode.value
                 val service = MMAssistantForegroundService.activeServiceInstance
 
                 if (isOnline && service != null) {
-                    _localAssistantState.value = service.geminiClient.assistantState.value
-                    _localTranscripts.value = service.geminiClient.transcripts.value
-                    _localActiveTool.value = service.geminiClient.activeToolCall.value
-                    _localSassyQuote.value = service.geminiClient.sassyOneLiner.value
-                    _speakerLevel.value = service.audioPlayer.liveAmplitude.value
+                    val newState = service.geminiClient.assistantState.value
+                    if (_localAssistantState.value != newState) _localAssistantState.value = newState
+
+                    val newTranscripts = service.geminiClient.transcripts.value
+                    if (_localTranscripts.value != newTranscripts) _localTranscripts.value = newTranscripts
+
+                    val newActiveTool = service.geminiClient.activeToolCall.value
+                    if (_localActiveTool.value != newActiveTool) _localActiveTool.value = newActiveTool
+
+                    val newQuote = service.geminiClient.sassyOneLiner.value
+                    if (_localSassyQuote.value != newQuote) _localSassyQuote.value = newQuote
+
+                    val newAmp = service.audioPlayer.liveAmplitude.value
+                    if (Math.abs(_speakerLevel.value - newAmp) > 0.02f) _speakerLevel.value = newAmp
                 } else if (!isOnline) {
                     // In offline mode
                     val isOfflineListening = offlineSpeechEngine?.isListening?.value ?: false
                     val isOfflineSpeaking = offlineSpeechEngine?.isSpeaking?.value ?: false
 
-                    _localAssistantState.value = when {
+                    val offlineState = when {
                         isOfflineSpeaking -> AssistantState.SPEAKING
                         isOfflineListening -> AssistantState.LISTENING
                         _localAssistantState.value == AssistantState.THINKING -> AssistantState.THINKING
                         else -> AssistantState.DISCONNECTED
+                    }
+                    if (_localAssistantState.value != offlineState) {
+                        _localAssistantState.value = offlineState
                     }
                 }
 
@@ -211,11 +381,13 @@ class MMAssistantViewModel(application: Application) : AndroidViewModel(applicat
                     val detected = com.example.model.SassyMoodDetector.detectMood(
                         text = _localSassyQuote.value,
                         state = _localAssistantState.value,
-                        activeToolName = _localActiveTool.value?.toolName
+                        activeToolName = _localActiveTool.value?.functionName
                     )
-                    _currentSassyMood.value = detected
+                    if (_currentSassyMood.value != detected) {
+                        _currentSassyMood.value = detected
+                    }
                 }
-                delay(80)
+                delay(120)
             }
         }
     }
@@ -515,7 +687,7 @@ class MMAssistantViewModel(application: Application) : AndroidViewModel(applicat
             _currentSassyMood.value = com.example.model.SassyMoodDetector.detectMood(
                 text = _localSassyQuote.value,
                 state = _localAssistantState.value,
-                activeToolName = _localActiveTool.value?.toolName
+                activeToolName = _localActiveTool.value?.functionName
             )
         }
     }
@@ -525,6 +697,23 @@ class MMAssistantViewModel(application: Application) : AndroidViewModel(applicat
         val sampleQuote = mood.sampleQuotes.random()
         _localSassyQuote.value = sampleQuote
         addLocalTranscript(LiveTranscript.Sender.MM, sampleQuote)
+    }
+
+    fun reconnect() {
+        val service = MMAssistantForegroundService.activeServiceInstance
+        if (service != null) {
+            service.geminiClient.connect()
+        } else {
+            startBackgroundService()
+        }
+    }
+
+    private var isFlashlightOn = false
+
+    fun toggleFlashlight() {
+        isFlashlightOn = !isFlashlightOn
+        val res = toolManager.toggleFlashlight(isFlashlightOn)
+        _localSassyQuote.value = res.message
     }
 
     override fun onCleared() {

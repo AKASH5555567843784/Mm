@@ -18,6 +18,8 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.VolumeUp
+import androidx.compose.material.icons.filled.AutoAwesome
 import androidx.compose.material.icons.filled.BatteryChargingFull
 import androidx.compose.material.icons.filled.BatterySaver
 import androidx.compose.material.icons.filled.Check
@@ -28,7 +30,6 @@ import androidx.compose.material.icons.filled.MicOff
 import androidx.compose.material.icons.filled.Notifications
 import androidx.compose.material.icons.filled.Phone
 import androidx.compose.material.icons.filled.PowerSettingsNew
-import androidx.compose.material.icons.filled.VolumeUp
 import androidx.compose.material.icons.filled.Warning
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
@@ -280,6 +281,99 @@ fun ServiceControlsSheet(
             }
         }
 
+        Spacer(modifier = Modifier.height(12.dp))
+
+        // Default Digital Assistant System Role Card
+        val isDefaultAssist = com.example.util.DefaultAssistantManager.isDefaultAssistant(context)
+        Card(
+            modifier = Modifier
+                .fillMaxWidth()
+                .testTag("default_assistant_system_card"),
+            shape = RoundedCornerShape(16.dp),
+            colors = CardDefaults.cardColors(
+                containerColor = if (isDefaultAssist) AccentGreen.copy(alpha = 0.12f) else NeonViolet.copy(alpha = 0.15f)
+            ),
+            border = androidx.compose.foundation.BorderStroke(
+                1.dp,
+                if (isDefaultAssist) AccentGreen.copy(alpha = 0.5f) else NeonViolet.copy(alpha = 0.5f)
+            )
+        ) {
+            Column(
+                modifier = Modifier.padding(14.dp),
+                verticalArrangement = Arrangement.spacedBy(10.dp)
+            ) {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        modifier = Modifier.weight(1f)
+                    ) {
+                        Icon(
+                            imageVector = if (isDefaultAssist) Icons.Default.CheckCircle else Icons.Default.AutoAwesome,
+                            contentDescription = null,
+                            tint = if (isDefaultAssist) AccentGreen else NeonCyan,
+                            modifier = Modifier.size(22.dp)
+                        )
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Column {
+                            Text(
+                                text = if (isDefaultAssist) "Default Digital Assistant: Active" else "Default Digital Assistant: Inactive",
+                                style = MaterialTheme.typography.bodyMedium.copy(
+                                    color = TextPrimary,
+                                    fontWeight = FontWeight.Bold
+                                )
+                            )
+                            Text(
+                                text = if (isDefaultAssist) "Power button & swipe gestures route to MM" else "Set MM to intercept hardware & gesture triggers",
+                                style = MaterialTheme.typography.labelSmall.copy(
+                                    color = if (isDefaultAssist) AccentGreen else TextTertiary
+                                )
+                            )
+                        }
+                    }
+                }
+
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    Button(
+                        onClick = {
+                            context.startActivity(com.example.util.DefaultAssistantManager.createSetDefaultAssistantIntent(context))
+                        },
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = if (isDefaultAssist) DarkSurfaceVariant else NeonCyan
+                        ),
+                        modifier = Modifier
+                            .weight(1f)
+                            .testTag("set_default_assistant_button")
+                    ) {
+                        Text(
+                            text = if (isDefaultAssist) "Change Handler" else "Set Default App",
+                            fontSize = 12.sp,
+                            color = if (isDefaultAssist) TextPrimary else Color.Black,
+                            fontWeight = FontWeight.Bold
+                        )
+                    }
+
+                    OutlinedButton(
+                        onClick = {
+                            context.startActivity(com.example.util.DefaultAssistantManager.createPowerButtonAssistantSettingsIntent(context))
+                        },
+                        modifier = Modifier
+                            .weight(1f)
+                            .testTag("power_button_settings_button"),
+                        colors = ButtonDefaults.outlinedButtonColors(contentColor = NeonMagenta)
+                    ) {
+                        Text("Side Key / Gesture", fontSize = 12.sp)
+                    }
+                }
+            }
+        }
+
         Spacer(modifier = Modifier.height(10.dp))
 
         // Intelligent Volume Adjuster Preset Bar
@@ -295,7 +389,7 @@ fun ServiceControlsSheet(
                 colors = ButtonDefaults.outlinedButtonColors(contentColor = NeonCyan)
             ) {
                 Icon(
-                    imageVector = Icons.Default.VolumeUp,
+                    imageVector = Icons.AutoMirrored.Filled.VolumeUp,
                     contentDescription = null,
                     modifier = Modifier.size(16.dp)
                 )
@@ -311,7 +405,7 @@ fun ServiceControlsSheet(
                 colors = ButtonDefaults.outlinedButtonColors(contentColor = NeonViolet)
             ) {
                 Icon(
-                    imageVector = Icons.Default.VolumeUp,
+                    imageVector = Icons.AutoMirrored.Filled.VolumeUp,
                     contentDescription = null,
                     modifier = Modifier.size(16.dp)
                 )

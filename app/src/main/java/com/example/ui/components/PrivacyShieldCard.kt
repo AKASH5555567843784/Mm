@@ -19,13 +19,13 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.VolumeOff
+import androidx.compose.material.icons.automirrored.filled.VolumeUp
 import androidx.compose.material.icons.filled.Hearing
 import androidx.compose.material.icons.filled.Mic
 import androidx.compose.material.icons.filled.MicOff
 import androidx.compose.material.icons.filled.PrivacyTip
 import androidx.compose.material.icons.filled.Security
-import androidx.compose.material.icons.filled.VolumeOff
-import androidx.compose.material.icons.filled.VolumeUp
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Icon
@@ -184,7 +184,7 @@ fun PrivacyShieldCard(
 
                     // 2. Speech & TTS Output Toggle Badge
                     PrivacyStatusChip(
-                        icon = if (isSpeechOutputMuted) Icons.Default.VolumeOff else Icons.Default.VolumeUp,
+                        icon = if (isSpeechOutputMuted) Icons.AutoMirrored.Filled.VolumeOff else Icons.AutoMirrored.Filled.VolumeUp,
                         title = "Voice Speech",
                         statusText = if (isSpeechOutputMuted) "MUTED" else "ACTIVE",
                         isActive = !isSpeechOutputMuted,

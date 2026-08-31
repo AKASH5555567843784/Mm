@@ -5,19 +5,30 @@
     android:height="108dp"
     android:viewportWidth="108"
     android:viewportHeight="108">
+    
+    <!-- Base Deep Cyber Gradient Canvas -->
     <path android:pathData="M0,0h108v108h-108z">
         <aapt:attr name="android:fillColor">
             <gradient
                 android:angle="135"
-                android:endColor="#0F0C20"
-                android:startColor="#2D124D"
+                android:startColor="#1E0A3C"
+                android:centerColor="#0E0822"
+                android:endColor="#05030D"
                 android:type="linear" />
         </aapt:attr>
     </path>
-    <!-- Subtle luminous ambient ring -->
+
+    <!-- Outer Ambient Glow Aura -->
     <path
-        android:pathData="M54,54m-42,0a42,42 0 1,0 84,0a42,42 0 1,0 -84,0"
-        android:strokeAlpha="0.2"
-        android:strokeColor="#FF60A8"
+        android:pathData="M54,54m-44,0a44,44 0 1,0 88,0a44,44 0 1,0 -88,0"
+        android:strokeAlpha="0.15"
+        android:strokeColor="#00E5FF"
         android:strokeWidth="1.5" />
+
+    <!-- Secondary Neon Magenta Orbital Accent -->
+    <path
+        android:pathData="M54,54m-38,0a38,38 0 1,0 76,0a38,38 0 1,0 -76,0"
+        android:strokeAlpha="0.25"
+        android:strokeColor="#FF2E93"
+        android:strokeWidth="1.0" />
 </vector>

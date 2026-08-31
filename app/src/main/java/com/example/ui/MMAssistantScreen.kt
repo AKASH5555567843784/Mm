@@ -2,9 +2,12 @@ package com.example.ui
 
 import android.Manifest
 import android.content.pm.PackageManager
-import androidx.activity.compose.rememberLauncherForActivityResult
-import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -18,13 +21,16 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.AutoAwesome
-import androidx.compose.material.icons.filled.Hearing
+import androidx.compose.material.icons.filled.Cloud
+import androidx.compose.material.icons.automirrored.filled.HelpOutline
+import com.example.ui.components.AssistantBottomRevealSheet
+import com.example.ui.components.NeonGlowingEdgeOverlay
+import androidx.compose.material.icons.filled.Memory
 import androidx.compose.material.icons.filled.PowerSettingsNew
-import androidx.compose.material.icons.filled.SpatialAudioOff
-import androidx.compose.material.icons.filled.VoiceChat
 import androidx.compose.material3.CenterAlignedTopAppBar
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
@@ -37,10 +43,12 @@ import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
@@ -49,25 +57,19 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.core.content.ContextCompat
 import com.example.model.AssistantState
-import com.example.model.SassyMood
-import com.example.ui.components.CallAnnouncerCard
+import com.example.ui.components.AssistantBottomControlBar
 import com.example.ui.components.GlowingVoiceOrb
-import com.example.ui.components.HybridModeStatusBar
-import com.example.ui.components.LocalModelManagerSection
+import com.example.ui.components.MMAssistantSettingsModal
+import com.example.ui.components.OnboardingFeatureOverlay
 import com.example.ui.components.PermissionsOnboardingDialog
-import com.example.ui.components.PrivacyShieldCard
-import com.example.ui.components.RemotePcControlCard
-import com.example.ui.components.SassyMoodControlCard
 import com.example.ui.components.SassySubtitleCard
-import com.example.ui.components.ServiceControlsSheet
 import com.example.ui.components.ToolExecutionBadge
 import com.example.ui.components.VoiceQuickChips
 import com.example.ui.components.WaveformVisualizer
 import com.example.ui.theme.DarkBackground
 import com.example.ui.theme.DarkSurface
+import com.example.ui.theme.LocalSassyMood
 import com.example.ui.theme.NeonCyan
-import com.example.ui.theme.NeonMagenta
-import com.example.ui.theme.NeonViolet
 import com.example.ui.theme.TextPrimary
 import com.example.ui.theme.TextSecondary
 import com.example.ui.theme.TextTertiary
@@ -90,7 +92,6 @@ fun MMAssistantScreen(
     val isMuted by viewModel.isMuted.collectAsState()
     val isSpeechOutputMuted by viewModel.isSpeechOutputMuted.collectAsState()
     val isSpeechRecognizerActive by viewModel.isSpeechRecognizerActive.collectAsState()
-    val isStandby by viewModel.isStandby.collectAsState()
     val wakeWordSensitivity by viewModel.wakeWordSensitivity.collectAsState()
     val isBatteryExempt by viewModel.isBatteryExempt.collectAsState()
 
@@ -107,11 +108,11 @@ fun MMAssistantScreen(
     val pcLastLog by viewModel.pcLastLog.collectAsState()
 
     val isOnline by viewModel.networkMonitor.isOnline.collectAsState()
-    val networkType by viewModel.networkMonitor.networkType.collectAsState()
     val forceOfflineMode by viewModel.forceOfflineMode.collectAsState()
     val activeEngineName by viewModel.activeEngineName.collectAsState()
     val localModels by viewModel.localModels.collectAsState()
     val showPermissionsDialog by viewModel.showPermissionsDialog.collectAsState()
+    val showOnboardingOverlay by viewModel.showOnboardingOverlay.collectAsState()
 
     val micAmplitude by viewModel.micAmplitude.collectAsState()
     val speakerAmplitude by viewModel.outputAmplitude.collectAsState()
@@ -120,8 +121,31 @@ fun MMAssistantScreen(
     val sassyMood by viewModel.currentSassyMood.collectAsState()
     val isAutoMoodDetection by viewModel.isAutoMoodDetectionEnabled.collectAsState()
 
-    val combinedAmplitude = if (assistantState == AssistantState.SPEAKING) speakerAmplitude else micAmplitude
+    // Device Screen Lock & Unlock states (PIN, Pattern, Password, Swipe)
+    val deviceLockType by viewModel.deviceLockType.collectAsState()
+    val deviceSavedCredential by viewModel.deviceSavedCredential.collectAsState()
+    val isAutoVoiceUnlockEnabled by viewModel.isAutoVoiceUnlockEnabled.collectAsState()
+    val isAccessibilityEnabled by viewModel.isAccessibilityEnabled.collectAsState()
+    val lastPhoneLockAction by viewModel.lastPhoneLockAction.collectAsState()
 
+    // App Lock & Stealth states
+    val isAppLockEnabled by viewModel.isAppLockEnabled.collectAsState()
+    val lockedApps by viewModel.lockedApps.collectAsState()
+    val hiddenApps by viewModel.hiddenApps.collectAsState()
+    val isAssistantHidden by viewModel.isAssistantHidden.collectAsState()
+    val masterPin by viewModel.masterPin.collectAsState()
+    val lastSecurityAction by viewModel.lastSecurityAction.collectAsState()
+
+    // AI Intelligence Configuration states
+    val selectedAiModel by viewModel.selectedAiModel.collectAsState()
+    val temperature by viewModel.temperature.collectAsState()
+    val isZeroFabricationEnabled by viewModel.isZeroFabricationEnabled.collectAsState()
+    val isActionOrientedEnabled by viewModel.isActionOrientedEnabled.collectAsState()
+
+    var isSettingsOpen by remember { mutableStateOf(false) }
+    var showRevealPreview by remember { mutableStateOf(false) }
+
+    val combinedAmplitude = if (assistantState == AssistantState.SPEAKING) speakerAmplitude else micAmplitude
     val scrollState = rememberScrollState()
 
     val hasAudio = ContextCompat.checkSelfPermission(context, Manifest.permission.RECORD_AUDIO) == PackageManager.PERMISSION_GRANTED
@@ -139,9 +163,10 @@ fun MMAssistantScreen(
                         Row(
                             verticalAlignment = Alignment.CenterVertically
                         ) {
+                            // Service state indicator dot
                             Box(
                                 modifier = Modifier
-                                    .size(10.dp)
+                                    .size(9.dp)
                                     .clip(CircleShape)
                                     .background(
                                         if (isServiceRunning) NeonCyan else Color.DarkGray
@@ -161,13 +186,60 @@ fun MMAssistantScreen(
                                 text = "ASSISTANT",
                                 style = MaterialTheme.typography.titleMedium.copy(
                                     fontWeight = FontWeight.Light,
-                                    color = NeonMagenta,
+                                    color = sassyMood.primaryColor,
                                     letterSpacing = 3.sp
                                 )
                             )
                         }
                     },
+                    navigationIcon = {
+                        // Engine pill badge (Tappable to toggle Cloud / Local GGUF)
+                        Surface(
+                            shape = RoundedCornerShape(16.dp),
+                            color = DarkSurface.copy(alpha = 0.85f),
+                            border = androidx.compose.foundation.BorderStroke(1.dp, sassyMood.primaryColor.copy(alpha = 0.35f)),
+                            modifier = Modifier
+                                .padding(start = 12.dp)
+                                .clickable { viewModel.toggleForceOfflineMode() }
+                                .testTag("top_engine_badge")
+                        ) {
+                            Row(
+                                modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Icon(
+                                    imageVector = if (forceOfflineMode || !isOnline) Icons.Default.Memory else Icons.Default.Cloud,
+                                    contentDescription = "Active Engine",
+                                    tint = if (forceOfflineMode || !isOnline) Color(0xFFFFB703) else sassyMood.secondaryColor,
+                                    modifier = Modifier.size(13.dp)
+                                )
+                                Spacer(modifier = Modifier.width(4.dp))
+                                Text(
+                                    text = if (forceOfflineMode || !isOnline) "GGUF" else "GEMINI",
+                                    style = MaterialTheme.typography.labelSmall.copy(
+                                        color = TextPrimary,
+                                        fontWeight = FontWeight.Bold,
+                                        fontSize = 9.sp,
+                                        letterSpacing = 0.5.sp
+                                    )
+                                )
+                            }
+                        }
+                    },
                     actions = {
+                        // Quick Guide & Onboarding Overlay Trigger
+                        IconButton(
+                            onClick = { viewModel.showOnboardingOverlay() },
+                            modifier = Modifier.testTag("top_bar_help_button")
+                        ) {
+                            Icon(
+                                imageVector = Icons.AutoMirrored.Filled.HelpOutline,
+                                contentDescription = "Voice & Sassy Mood Guide",
+                                tint = sassyMood.primaryColor.copy(alpha = 0.85f)
+                            )
+                        }
+
+                        // Background Service Quick Toggle
                         IconButton(
                             onClick = { viewModel.toggleService() },
                             modifier = Modifier.testTag("top_bar_power_button")
@@ -175,13 +247,24 @@ fun MMAssistantScreen(
                             Icon(
                                 imageVector = Icons.Default.PowerSettingsNew,
                                 contentDescription = "Toggle Background Service",
-                                tint = if (isServiceRunning) NeonCyan else TextTertiary
+                                tint = if (isServiceRunning) sassyMood.secondaryColor else TextTertiary
                             )
                         }
                     },
                     colors = TopAppBarDefaults.centerAlignedTopAppBarColors(
                         containerColor = DarkBackground
                     )
+                )
+            },
+            bottomBar = {
+                // Fixed Modern Bottom Control Bar (Mute, Mic Action, Settings)
+                AssistantBottomControlBar(
+                    assistantState = assistantState,
+                    isMuted = isMuted,
+                    onToggleMute = { viewModel.toggleMute() },
+                    onMicTap = { viewModel.onMicOrbTapped() },
+                    onOpenSettings = { isSettingsOpen = true },
+                    mood = sassyMood
                 )
             },
             containerColor = DarkBackground,
@@ -192,82 +275,91 @@ fun MMAssistantScreen(
                     .fillMaxSize()
                     .padding(paddingValues)
                     .verticalScroll(scrollState)
-                    .padding(horizontal = 18.dp),
+                    .padding(horizontal = 20.dp),
                 horizontalAlignment = Alignment.CenterHorizontally,
-                verticalArrangement = Arrangement.spacedBy(16.dp)
+                verticalArrangement = Arrangement.SpaceBetween
             ) {
-                Spacer(modifier = Modifier.height(2.dp))
-
-                // Hybrid Mode Engine Bar (Gemini Live vs Open-Source Local GGUF)
-                HybridModeStatusBar(
-                    isOnline = isOnline,
-                    networkType = networkType,
-                    forceOfflineMode = forceOfflineMode,
-                    onToggleForceOffline = { viewModel.toggleForceOfflineMode() },
-                    activeEngineName = activeEngineName
-                )
-
-                // Central Glowing Voice Orb with Dynamic Sassy Mood Animations
-                GlowingVoiceOrb(
-                    state = assistantState,
-                    amplitude = combinedAmplitude,
-                    isMuted = isMuted,
-                    onTap = { viewModel.onMicOrbTapped() },
-                    mood = sassyMood,
-                    modifier = Modifier.padding(vertical = 8.dp)
-                )
-
-                // Dynamic Waveform Visualizer
-                WaveformVisualizer(
-                    amplitude = combinedAmplitude,
-                    isActive = assistantState == AssistantState.SPEAKING || assistantState == AssistantState.LISTENING
-                )
-
-                // Sassy live speech & witty personality card with Dynamic Mood Pill & border
-                SassySubtitleCard(
-                    quote = sassyQuote,
-                    state = assistantState,
-                    mood = sassyMood
-                )
-
-                // Interactive Sassy Mood & Theme State Manager
-                SassyMoodControlCard(
-                    currentMood = sassyMood,
-                    isAutoDetectionEnabled = isAutoMoodDetection,
-                    onMoodSelected = { viewModel.setSassyMood(it) },
-                    onToggleAutoDetection = { viewModel.toggleAutoMoodDetection(it) },
-                    onTriggerMoodSample = { viewModel.triggerMoodSample(it) }
-                )
-
-                // Persistent Privacy Shield Quick-Toggle (Mic & Speech Output Control)
-                PrivacyShieldCard(
-                    isPrivacyModeActive = isPrivacyMode,
-                    isMicMuted = isMuted,
-                    isSpeechOutputMuted = isSpeechOutputMuted,
-                    isSpeechRecognizerActive = isSpeechRecognizerActive,
-                    onTogglePrivacyMode = { viewModel.togglePrivacyMode() },
-                    onToggleMicMute = { viewModel.toggleMute() },
-                    onToggleSpeechMute = { viewModel.toggleSpeechMute() },
-                    onTestWakeWord = { viewModel.testWakeWordTrigger(it) }
-                )
-
-                // Native Device Tool Call status card (if active)
-                ToolExecutionBadge(activeTool = activeTool)
-
-                // Quick Voice Command Trigger Chips (including identity checks)
                 Column(
                     modifier = Modifier.fillMaxWidth(),
+                    horizontalAlignment = Alignment.CenterHorizontally
+                ) {
+                    Spacer(modifier = Modifier.height(8.dp))
+
+                    // Dynamic Tool Execution Badge (shown cleanly when a device tool is executing)
+                    AnimatedVisibility(
+                        visible = activeTool != null,
+                        enter = fadeIn(),
+                        exit = fadeOut()
+                    ) {
+                        ToolExecutionBadge(
+                            activeTool = activeTool,
+                            modifier = Modifier.padding(bottom = 8.dp)
+                        )
+                    }
+
+                    // Central Glowing Voice & Sassy Mood Orb
+                    GlowingVoiceOrb(
+                        state = assistantState,
+                        amplitude = combinedAmplitude,
+                        isMuted = isMuted,
+                        onTap = { viewModel.onMicOrbTapped() },
+                        mood = sassyMood,
+                        modifier = Modifier.padding(vertical = 12.dp)
+                    )
+
+                    // Dynamic Reactive Waveform Visualizer
+                    WaveformVisualizer(
+                        amplitude = combinedAmplitude,
+                        isActive = assistantState == AssistantState.SPEAKING || assistantState == AssistantState.LISTENING
+                    )
+
+                    Spacer(modifier = Modifier.height(14.dp))
+
+                    // Sassy Subtitle & Live Speech Card with dynamic mood pill & response quote
+                    SassySubtitleCard(
+                        quote = sassyQuote,
+                        state = assistantState,
+                        mood = sassyMood
+                    )
+                }
+
+                // Bottom Section: Quick Voice Triggers
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(top = 16.dp, bottom = 12.dp),
                     horizontalAlignment = Alignment.Start
                 ) {
-                    Text(
-                        text = "Quick Voice Triggers",
-                        style = MaterialTheme.typography.labelMedium.copy(
-                            color = TextTertiary,
-                            fontWeight = FontWeight.SemiBold,
-                            letterSpacing = 1.sp
-                        ),
-                        modifier = Modifier.padding(start = 4.dp, bottom = 8.dp)
-                    )
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text(
+                            text = "Quick Voice Triggers",
+                            style = MaterialTheme.typography.labelMedium.copy(
+                                color = TextTertiary,
+                                fontWeight = FontWeight.SemiBold,
+                                letterSpacing = 1.sp
+                            ),
+                            modifier = Modifier.padding(start = 4.dp, bottom = 8.dp)
+                        )
+
+                        Text(
+                            text = "⚡ Preview Edge Glow & Card",
+                            style = MaterialTheme.typography.labelSmall.copy(
+                                color = sassyMood.primaryColor,
+                                fontWeight = FontWeight.Bold,
+                                fontSize = 11.sp
+                            ),
+                            modifier = Modifier
+                                .clip(RoundedCornerShape(8.dp))
+                                .clickable { showRevealPreview = true }
+                                .padding(horizontal = 6.dp, vertical = 2.dp)
+                                .testTag("preview_edge_glow_button")
+                        )
+                    }
+
                     VoiceQuickChips(
                         suggestions = viewModel.quickVoiceSuggestions,
                         onChipSelected = { prompt ->
@@ -275,55 +367,140 @@ fun MMAssistantScreen(
                         }
                     )
                 }
+            }
+        }
 
-                // Intelligent Call Announcer Card (Silent Mode Dependent)
-                CallAnnouncerCard(
-                    isEnabled = callAnnouncerEnabled,
-                    onToggleEnabled = { viewModel.toggleCallAnnouncer(it) },
-                    lastAnnouncement = lastCallAnnouncement,
-                    isAnnouncing = isAnnouncingCall,
-                    onTestKnownCaller = { viewModel.testCallAnnouncement("Akash Upadhyay", forceSilent = true) },
-                    onTestUnknownCaller = { viewModel.testCallAnnouncement(null, forceSilent = true) }
-                )
+        // Dedicated Settings Modal / BottomSheet
+        if (isSettingsOpen) {
+            MMAssistantSettingsModal(
+                onDismiss = { isSettingsOpen = false },
+                selectedAiModel = selectedAiModel,
+                temperature = temperature,
+                isZeroFabricationEnabled = isZeroFabricationEnabled,
+                isActionOrientedEnabled = isActionOrientedEnabled,
+                onSelectAiModel = { viewModel.updateAiModel(it) },
+                onTemperatureChanged = { viewModel.updateTemperature(it) },
+                onToggleZeroFabrication = { viewModel.toggleZeroFabrication(it) },
+                onToggleActionOriented = { viewModel.toggleActionOriented(it) },
+                currentMood = sassyMood,
+                isAutoMoodDetection = isAutoMoodDetection,
+                onMoodSelected = { viewModel.setSassyMood(it) },
+                onToggleAutoDetection = { viewModel.toggleAutoMoodDetection(it) },
+                onTriggerMoodSample = { viewModel.triggerMoodSample(it) },
+                // Phone Device Lock & Unlock (PIN, Pattern, Password, Swipe)
+                deviceLockType = deviceLockType,
+                deviceSavedCredential = deviceSavedCredential,
+                isAutoVoiceUnlockEnabled = isAutoVoiceUnlockEnabled,
+                isAccessibilityEnabled = isAccessibilityEnabled,
+                lastPhoneLockAction = lastPhoneLockAction,
+                onSaveDeviceCredentials = { type, cred, auto -> viewModel.saveDeviceCredentials(type, cred, auto) },
+                onClearDeviceCredentials = { viewModel.clearDeviceCredentials() },
+                onToggleAutoVoiceUnlock = { viewModel.toggleAutoVoiceUnlock(it) },
+                onUnlockPhone = { viewModel.unlockPhone() },
+                onLockPhone = { viewModel.lockPhone() },
+                onOpenAccessibilitySettings = { viewModel.openAccessibilitySettings() },
+                // App Lock & Stealth
+                isAppLockEnabled = isAppLockEnabled,
+                lockedApps = lockedApps,
+                hiddenApps = hiddenApps,
+                isAssistantHidden = isAssistantHidden,
+                masterPin = masterPin,
+                lastSecurityAction = lastSecurityAction,
+                onToggleAppLock = { viewModel.toggleAppLockEnabled(it) },
+                onLockApp = { viewModel.lockApp(it) },
+                onUnlockApp = { viewModel.unlockApp(it) },
+                onHideApp = { viewModel.hideApp(it) },
+                onUnhideApp = { viewModel.unhideApp(it) },
+                onSetMasterPin = { viewModel.setMasterPin(it) },
+                onToggleAssistantStealth = { viewModel.toggleAssistantStealth(it) },
+                getDisplayName = { viewModel.getAppDisplayName(it) },
+                // Privacy & Audio
+                isPrivacyMode = isPrivacyMode,
+                isMuted = isMuted,
+                isSpeechOutputMuted = isSpeechOutputMuted,
+                isSpeechRecognizerActive = isSpeechRecognizerActive,
+                onTogglePrivacyMode = { viewModel.togglePrivacyMode() },
+                onToggleMute = { viewModel.toggleMute() },
+                onToggleSpeechMute = { viewModel.toggleSpeechMute() },
+                onTestWakeWord = { viewModel.testWakeWordTrigger(it) },
+                callAnnouncerEnabled = callAnnouncerEnabled,
+                onToggleCallAnnouncer = { viewModel.toggleCallAnnouncer(it) },
+                lastCallAnnouncement = lastCallAnnouncement,
+                isAnnouncingCall = isAnnouncingCall,
+                onTestKnownCaller = { viewModel.testCallAnnouncement("Akash Upadhyay", forceSilent = true) },
+                onTestUnknownCaller = { viewModel.testCallAnnouncement(null, forceSilent = true) },
+                pcStatus = pcStatus,
+                pcName = pcName,
+                pcIp = pcIp,
+                pcPort = pcPort,
+                pcLatency = pcLatency,
+                pcLastLog = pcLastLog,
+                onPingPc = { viewModel.pingPc() },
+                onSavePcSettings = { ip, port, name -> viewModel.updatePcSettings(ip, port, name) },
+                onExecutePcAction = { cmd, params -> viewModel.executePcAction(cmd, params) },
+                pythonScriptCode = viewModel.remotePcManager.getPythonDaemonScript(),
+                localModels = localModels,
+                storageUsedFormatted = viewModel.getStorageUsedFormatted(),
+                onSelectModel = { viewModel.selectGGUFModel(it) },
+                onDownloadModel = { viewModel.downloadGGUFModel(it) },
+                onDeleteModel = { viewModel.deleteGGUFModel(it) },
+                isServiceRunning = isServiceRunning,
+                wakeWordSensitivity = wakeWordSensitivity,
+                isBatteryExempt = isBatteryExempt,
+                onToggleService = { viewModel.toggleService() },
+                onSensitivityChanged = { viewModel.setSensitivity(it) },
+                onRequestPermissions = onRequestPermissions,
+                onRequestDisableBatteryOptimization = { viewModel.requestDisableBatteryOptimization() },
+                onVolumePresetSelected = { viewModel.executeQuickToolDirectly(it) }
+            )
+        }
 
-                // Remote PC Companion Control Card
-                RemotePcControlCard(
-                    status = pcStatus,
-                    pcName = pcName,
-                    pcIp = pcIp,
-                    pcPort = pcPort,
-                    latencyMs = pcLatency,
-                    lastLog = pcLastLog,
-                    onPing = { viewModel.pingPc() },
-                    onSaveSettings = { ip, port, name -> viewModel.updatePcSettings(ip, port, name) },
-                    onExecuteAction = { cmd, params -> viewModel.executePcAction(cmd, params) },
-                    pythonScriptCode = viewModel.remotePcManager.getPythonDaemonScript()
-                )
+        // First-Launch Non-Intrusive Onboarding Overlay (Voice-Trigger Gestures & Sassy Personas)
+        OnboardingFeatureOverlay(
+            isVisible = showOnboardingOverlay,
+            currentMood = sassyMood,
+            onMoodSelected = { viewModel.setSassyMood(it) },
+            onDismiss = { viewModel.dismissOnboardingOverlay() }
+        )
 
-                // In-App Open-Source Local GGUF Model Downloader & Storage Manager
-                LocalModelManagerSection(
-                    models = localModels,
-                    storageUsedFormatted = viewModel.getStorageUsedFormatted(),
-                    onSelectModel = { viewModel.selectGGUFModel(it) },
-                    onDownloadModel = { viewModel.downloadGGUFModel(it) },
-                    onDeleteModel = { viewModel.deleteGGUFModel(it) }
-                )
+        // Holographic Neon Perimeter Edge Lighting (Active on listening, thinking, speaking or trigger preview)
+        NeonGlowingEdgeOverlay(
+            assistantState = assistantState,
+            audioAmplitude = combinedAmplitude,
+            isEdgeLightingEnabled = showRevealPreview || assistantState == AssistantState.LISTENING || assistantState == AssistantState.THINKING || assistantState == AssistantState.SPEAKING
+        )
 
-                // Service & Wake-Word Controls
-                ServiceControlsSheet(
-                    isServiceRunning = isServiceRunning,
-                    isMuted = isMuted,
-                    wakeWordSensitivity = wakeWordSensitivity,
-                    isBatteryExempt = isBatteryExempt,
-                    onToggleService = { viewModel.toggleService() },
-                    onToggleMute = { viewModel.toggleMute() },
-                    onSensitivityChanged = { viewModel.setSensitivity(it) },
-                    onRequestPermissions = onRequestPermissions,
-                    onRequestDisableBatteryOptimization = { viewModel.requestDisableBatteryOptimization() },
-                    onVolumePresetSelected = { viewModel.executeQuickToolDirectly(it) }
-                )
-
-                Spacer(modifier = Modifier.height(16.dp))
+        // Minimalist Bottom-Up Reveal Interactive Sheet Preview
+        if (showRevealPreview) {
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .background(Color.Black.copy(alpha = 0.55f))
+                    .clickable { showRevealPreview = false },
+                contentAlignment = Alignment.BottomCenter
+            ) {
+                AnimatedVisibility(
+                    visible = true,
+                    enter = androidx.compose.animation.slideInVertically(initialOffsetY = { it }) + fadeIn(),
+                    exit = androidx.compose.animation.slideOutVertically(targetOffsetY = { it }) + fadeOut()
+                ) {
+                    AssistantBottomRevealSheet(
+                        assistantState = assistantState,
+                        sassyQuote = sassyQuote,
+                        audioAmplitude = combinedAmplitude,
+                        isMuted = isMuted,
+                        onToggleMute = { viewModel.toggleMute() },
+                        onReconnect = { viewModel.reconnect() },
+                        onDismiss = { showRevealPreview = false },
+                        onOpenSettings = {
+                            showRevealPreview = false
+                            isSettingsOpen = true
+                        },
+                        onUnlockPhone = { viewModel.unlockPhone() },
+                        onToggleFlashlight = { viewModel.toggleFlashlight() },
+                        triggerSource = "IN_APP_PREVIEW"
+                    )
+                }
             }
         }
 

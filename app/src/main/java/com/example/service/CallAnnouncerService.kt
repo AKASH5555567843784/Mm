@@ -62,8 +62,8 @@ class CallAnnouncerService : Service() {
         }
     }
 
-    private lateinit var telephonyManager: TelephonyManager
-    private lateinit var callAnnouncerManager: CallAnnouncerManager
+    private var telephonyManager: TelephonyManager? = null
+    private var callAnnouncerManager: CallAnnouncerManager? = null
 
     // Modern Android S (API 31+) Telephony Callback
     private var telephonyCallback: TelephonyCallback? = null
@@ -75,7 +75,7 @@ class CallAnnouncerService : Service() {
 
     override fun onCreate() {
         super.onCreate()
-        telephonyManager = getSystemService(Context.TELEPHONY_SERVICE) as TelephonyManager
+        telephonyManager = getSystemService(Context.TELEPHONY_SERVICE) as? TelephonyManager
         callAnnouncerManager = CallAnnouncerManager.getInstance(applicationContext)
 
         createNotificationChannel()
@@ -98,6 +98,7 @@ class CallAnnouncerService : Service() {
     }
 
     private fun registerTelephonyListener() {
+        val tm = telephonyManager ?: return
         try {
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
                 val callback = object : TelephonyCallback(), TelephonyCallback.CallStateListener {
@@ -107,7 +108,7 @@ class CallAnnouncerService : Service() {
                 }
                 telephonyCallback = callback
                 val mainExecutor: Executor = mainExecutor
-                telephonyManager.registerTelephonyCallback(mainExecutor, callback)
+                tm.registerTelephonyCallback(mainExecutor, callback)
                 Log.d(TAG, "Registered modern TelephonyCallback.")
             } else {
                 @Suppress("DEPRECATION")
@@ -119,7 +120,7 @@ class CallAnnouncerService : Service() {
                 }
                 legacyPhoneStateListener = listener
                 @Suppress("DEPRECATION")
-                telephonyManager.listen(listener, PhoneStateListener.LISTEN_CALL_STATE)
+                tm.listen(listener, PhoneStateListener.LISTEN_CALL_STATE)
                 Log.d(TAG, "Registered legacy PhoneStateListener.")
             }
         } catch (e: SecurityException) {
@@ -130,16 +131,17 @@ class CallAnnouncerService : Service() {
     }
 
     private fun unregisterTelephonyListener() {
+        val tm = telephonyManager ?: return
         try {
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
                 telephonyCallback?.let {
-                    telephonyManager.unregisterTelephonyCallback(it)
+                    tm.unregisterTelephonyCallback(it)
                 }
                 telephonyCallback = null
             } else {
                 legacyPhoneStateListener?.let {
                     @Suppress("DEPRECATION")
-                    telephonyManager.listen(it, PhoneStateListener.LISTEN_NONE)
+                    tm.listen(it, PhoneStateListener.LISTEN_NONE)
                 }
                 legacyPhoneStateListener = null
             }
@@ -153,16 +155,17 @@ class CallAnnouncerService : Service() {
      */
     fun handleCallStateChange(state: Int, incomingNumber: String?) {
         Log.d(TAG, "TelephonyManager Call State: $state (Previous: $lastCallState)")
+        val announcer = callAnnouncerManager ?: runCatching { CallAnnouncerManager.getInstance(applicationContext) }.getOrNull()
 
         when (state) {
             TelephonyManager.CALL_STATE_RINGING -> {
                 if (lastCallState != TelephonyManager.CALL_STATE_RINGING) {
-                    callAnnouncerManager.onIncomingCall(incomingNumber)
+                    announcer?.onIncomingCall(incomingNumber)
                 }
             }
             TelephonyManager.CALL_STATE_OFFHOOK,
             TelephonyManager.CALL_STATE_IDLE -> {
-                callAnnouncerManager.stopSpeaking()
+                announcer?.stopSpeaking()
             }
         }
 
@@ -205,7 +208,7 @@ class CallAnnouncerService : Service() {
 
     private fun stopForegroundServiceInternal() {
         unregisterTelephonyListener()
-        callAnnouncerManager.stopSpeaking()
+        callAnnouncerManager?.stopSpeaking()
         stopForeground(STOP_FOREGROUND_REMOVE)
         stopSelf()
     }

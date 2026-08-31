@@ -30,7 +30,7 @@ class SpeechRecognizerWakeWordManager(
         private const val RESTART_DELAY_MS = 350L
         private const val COOLDOWN_MS = 2500L
 
-        // Wake word trigger keywords & variations
+        // Wake word trigger keywords & variations (English & Hindi/Hinglish)
         val WAKE_WORDS = listOf(
             "hey mm",
             "hello mm",
@@ -44,7 +44,12 @@ class SpeechRecognizerWakeWordManager(
             "hey aim",
             "mm assistant",
             "hey mm assistant",
-            "hello mm assistant"
+            "hello mm assistant",
+            "suno mm",
+            "mm suno",
+            "namaste mm",
+            "mm",
+            "m m"
         )
     }
 

@@ -22,6 +22,8 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.VolumeDown
+import androidx.compose.material.icons.automirrored.filled.VolumeUp
 import androidx.compose.material.icons.filled.CameraAlt
 import androidx.compose.material.icons.filled.Code
 import androidx.compose.material.icons.filled.Computer
@@ -34,8 +36,6 @@ import androidx.compose.material.icons.filled.OpenInBrowser
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.PowerSettingsNew
 import androidx.compose.material.icons.filled.Refresh
-import androidx.compose.material.icons.filled.VolumeDown
-import androidx.compose.material.icons.filled.VolumeUp
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
@@ -241,7 +241,7 @@ fun RemotePcControlCard(
 
                 // Vol Up
                 PcQuickActionButton(
-                    icon = Icons.Default.VolumeUp,
+                    icon = Icons.AutoMirrored.Filled.VolumeUp,
                     label = "Vol +",
                     tint = NeonCyan,
                     onClick = { onExecuteAction("media", mapOf("action" to "volume_up")) }
@@ -249,7 +249,7 @@ fun RemotePcControlCard(
 
                 // Vol Down
                 PcQuickActionButton(
-                    icon = Icons.Default.VolumeDown,
+                    icon = Icons.AutoMirrored.Filled.VolumeDown,
                     label = "Vol -",
                     tint = NeonCyan,
                     onClick = { onExecuteAction("media", mapOf("action" to "volume_down")) }

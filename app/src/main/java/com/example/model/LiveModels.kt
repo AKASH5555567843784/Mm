@@ -2,6 +2,7 @@ package com.example.model
 
 enum class AssistantState(val label: String) {
     DISCONNECTED("Disconnected"),
+    STANDBY("Standby"),
     CONNECTING("Connecting to MM..."),
     LISTENING("Listening..."),
     THINKING("MM is thinking..."),

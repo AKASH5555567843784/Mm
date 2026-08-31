@@ -17,9 +17,9 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.Chat
 import androidx.compose.material.icons.filled.Alarm
 import androidx.compose.material.icons.filled.Call
-import androidx.compose.material.icons.filled.Chat
 import androidx.compose.material.icons.filled.FlashlightOn
 import androidx.compose.material.icons.filled.MusicNote
 import androidx.compose.material.icons.filled.PhoneAndroid
@@ -57,7 +57,7 @@ fun ToolExecutionBadge(
             val icon = when (activeTool.functionName) {
                 "openApp" -> Icons.Default.PhoneAndroid
                 "searchAndCallContact" -> Icons.Default.Call
-                "sendWhatsAppMessage" -> Icons.Default.Chat
+                "sendWhatsAppMessage" -> Icons.AutoMirrored.Filled.Chat
                 "setAlarmOrTimer" -> Icons.Default.Alarm
                 "toggleFlashlight" -> Icons.Default.FlashlightOn
                 "playMusic" -> Icons.Default.MusicNote

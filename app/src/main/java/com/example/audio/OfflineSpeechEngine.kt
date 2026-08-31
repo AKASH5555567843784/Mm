@@ -174,6 +174,17 @@ class OfflineSpeechEngine(
         }
         try {
             _isSpeaking.value = true
+            // Check if text contains Devanagari or prominent Hindi markers to switch TTS voice locale smoothly
+            val hasHindiChars = text.any { it in '\u0900'..'\u097F' }
+            val targetLocale = if (hasHindiChars) Locale("hi", "IN") else Locale("en", "IN")
+            
+            val langAvailable = textToSpeech?.isLanguageAvailable(targetLocale)
+            if (langAvailable == TextToSpeech.LANG_AVAILABLE || langAvailable == TextToSpeech.LANG_COUNTRY_AVAILABLE) {
+                textToSpeech?.language = targetLocale
+            } else {
+                textToSpeech?.language = Locale.US
+            }
+
             val params = Bundle().apply {
                 putString(TextToSpeech.Engine.KEY_PARAM_UTTERANCE_ID, UTTERANCE_ID)
             }

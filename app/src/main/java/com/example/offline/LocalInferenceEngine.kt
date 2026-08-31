@@ -120,28 +120,96 @@ class LocalInferenceEngine(
     }
 
     private suspend fun evaluateLocalDeviceTool(query: String, lower: String): ToolExecutionResult? {
-        // Standby Mode ("Bye MM", "Bye", "Go to sleep", "Sleep mode")
-        if (lower == "bye mm" || lower == "bye" || lower.contains("go to sleep") || lower.contains("standby mode") || lower.contains("enter standby")) {
+        // Standby Mode ("Bye MM", "Bye", "Go to sleep", "Sleep mode", "Alvida MM", "So jao MM")
+        if (lower == "bye mm" || lower == "bye" || lower.contains("go to sleep") || lower.contains("standby mode") || 
+            lower.contains("enter standby") || lower.contains("alvida") || lower.contains("so jao")) {
             return deviceToolManager.enterStandbyMode()
         }
 
-        // Remote PC Controls (e.g. "lock pc", "shutdown pc", "pause on pc", "open vscode on pc", "type hello on pc", "screenshot pc")
+        // Phone Screen Lock & Unlock Automation (PIN, Pattern, Password, Swipe)
+        if (lower.contains("unlock my phone") || lower.contains("unlock phone") || lower.contains("phone unlock") || 
+            lower.contains("unlock device") || lower.contains("unlock screen") || lower.contains("phone ko unlock") || 
+            lower.contains("phone unlock karo") || lower.contains("phone kholo") || lower.contains("mobile unlock karo")) {
+            val customCred = if (lower.contains("pin ") || lower.contains("password ") || lower.contains("pattern ")) {
+                query.substringAfter("pin ").substringAfter("password ").substringAfter("pattern ").trim()
+            } else null
+            return deviceToolManager.unlockPhone(customCred)
+        }
+
+        if (lower.contains("lock my phone") || lower.contains("lock phone") || lower.contains("phone lock") || 
+            lower.contains("lock device") || lower.contains("lock screen") || lower.contains("phone ko lock") || 
+            lower == "lock the phone" || lower.contains("phone lock karo") || lower.contains("screen lock karo") || 
+            lower.contains("phone band karo")) {
+            return deviceToolManager.lockPhone()
+        }
+
+        if (lower.contains("save phone") || lower.contains("set phone pin") || lower.contains("save my phone pin") || 
+            lower.contains("set phone pattern") || lower.contains("set phone password") || lower.contains("phone ka pin set karo")) {
+            val type = when {
+                lower.contains("pattern") -> "PATTERN"
+                lower.contains("password") -> "PASSWORD"
+                lower.contains("swipe") -> "SWIPE"
+                else -> "PIN"
+            }
+            val cred = query.substringAfter("pin ").substringAfter("pattern ").substringAfter("password ").substringAfter("to ").substringAfter("as ").trim()
+            if (cred.isNotEmpty()) {
+                return deviceToolManager.saveDevicePassword(type, cred)
+            }
+        }
+
+        // App Lock & Hide App Features (e.g., "lock whatsapp", "unlock instagram", "hide app", "hide mm assistant", "app lock karo")
+        if (lower.startsWith("lock ") || lower == "lock app" || lower.contains("app lock") || lower.contains("lock kar")) {
+            val app = query.substringAfter("lock ").substringBefore(" with ").substringBefore(" pin ").substringBefore(" kar").trim()
+            val target = if (app.isEmpty() || app == "app") "MM Assistant" else app
+            return deviceToolManager.lockApp(target)
+        }
+
+        if (lower.startsWith("unlock ") || lower.contains("unlock kar")) {
+            val app = query.substringAfter("unlock ").substringBefore(" with ").substringBefore(" pin ").substringBefore(" kar").trim()
+            val target = if (app.isEmpty() || app == "app") "all" else app
+            return deviceToolManager.unlockApp(target)
+        }
+
+        if (lower.startsWith("hide ") || lower == "hide app" || lower.contains("stealth mode") || lower.contains("hide kar") || lower.contains("chupao")) {
+            val app = if (lower.contains("stealth") || lower == "hide app") "MM Assistant"
+            else query.substringAfter("hide ").substringBefore(" kar").trim()
+            return deviceToolManager.hideApp(app)
+        }
+
+        if (lower.startsWith("unhide ") || lower.contains("unhide kar") || lower.contains("restore hidden")) {
+            val app = query.substringAfter("unhide ").substringBefore(" kar").trim()
+            val target = if (app.isEmpty() || app == "app") "all" else app
+            return deviceToolManager.unhideApp(target)
+        }
+
+        if (lower.contains("locked app") || lower.contains("hidden app") || lower.contains("security status") || lower.contains("vault") || lower.contains("locked apps")) {
+            return deviceToolManager.listSecuredApps()
+        }
+
+        // Flashlight / Torch (Hindi & English commands)
+        if (lower.contains("flashlight") || lower.contains("torch") || lower.contains("roshni")) {
+            val isOff = lower.contains("off") || lower.contains("stop") || lower.contains("band") || lower.contains("bujhao")
+            val enable = !isOff
+            return deviceToolManager.toggleFlashlight(enable)
+        }
+
+        // Remote PC Controls (e.g. "lock pc", "shutdown pc", "pc lock karo", "open vscode on pc")
         if (lower.contains("pc") || lower.contains("laptop") || lower.contains("computer") || lower.contains("workstation")) {
             return when {
                 lower.contains("lock") -> deviceToolManager.controlRemotePc("lock")
-                lower.contains("shutdown") || lower.contains("turn off") -> deviceToolManager.controlRemotePc("shutdown")
+                lower.contains("shutdown") || lower.contains("turn off") || lower.contains("band karo") -> deviceToolManager.controlRemotePc("shutdown")
                 lower.contains("restart") || lower.contains("reboot") -> deviceToolManager.controlRemotePc("restart")
                 lower.contains("sleep") -> deviceToolManager.controlRemotePc("sleep")
-                lower.contains("open ") -> {
-                    val app = query.substringAfter("open ").substringBefore(" on ").substringBefore(" in ").trim()
+                lower.contains("open ") || lower.contains("kholo") -> {
+                    val app = query.substringAfter("open ").substringBefore(" on ").substringBefore(" in ").substringBefore(" kholo").trim()
                     deviceToolManager.controlRemotePc("open_app", targetApp = app)
                 }
                 lower.contains("pause") || lower.contains("play") || lower.contains("media") || lower.contains("mute") -> {
                     val act = if (lower.contains("mute")) "mute" else if (lower.contains("next")) "next" else "play_pause"
                     deviceToolManager.controlRemotePc("media", targetApp = act)
                 }
-                lower.contains("type ") -> {
-                    val text = query.substringAfter("type ").substringBefore(" on ").trim()
+                lower.contains("type ") || lower.contains("likho ") -> {
+                    val text = query.substringAfter("type ").substringAfter("likho ").substringBefore(" on ").trim()
                     deviceToolManager.controlRemotePc("type_text", textToType = text)
                 }
                 lower.contains("screenshot") -> deviceToolManager.controlRemotePc("screenshot")
@@ -151,7 +219,7 @@ class LocalInferenceEngine(
 
         // Telegram
         if (lower.contains("telegram")) {
-            var msg = "Hey from MM Assistant!"
+            var msg = "Hello from MM Assistant, Boss!"
             if (lower.contains("saying ") || lower.contains("message ")) {
                 msg = if (lower.contains("saying ")) query.substringAfter("saying ").trim() else query.substringAfter("message ").trim()
             }
@@ -159,12 +227,13 @@ class LocalInferenceEngine(
         }
 
         // Media playback controls
-        if (lower == "pause" || lower == "play" || lower == "next song" || lower == "skip song" || lower == "previous song" || lower == "stop music") {
+        if (lower == "pause" || lower == "play" || lower == "next song" || lower == "skip song" || 
+            lower == "previous song" || lower == "stop music" || lower.contains("gaana roko") || lower.contains("music roko")) {
             val act = when {
-                lower.contains("next") || lower.contains("skip") -> "next"
-                lower.contains("prev") -> "prev"
-                lower.contains("stop") -> "stop"
-                lower.contains("play") -> "play"
+                lower.contains("next") || lower.contains("skip") || lower.contains("agla") -> "next"
+                lower.contains("prev") || lower.contains("pichhla") -> "prev"
+                lower.contains("stop") || lower.contains("roko") || lower.contains("band") -> "stop"
+                lower.contains("play") || lower.contains("chalao") -> "play"
                 else -> "pause"
             }
             return deviceToolManager.controlMediaPlayback(act)
@@ -177,47 +246,63 @@ class LocalInferenceEngine(
         if (lower.contains("bluetooth")) {
             return deviceToolManager.toggleBluetooth()
         }
-        if (lower.contains("brightness") || lower.contains("display setting")) {
+        if (lower.contains("brightness") || lower.contains("display setting") || lower.contains("chamak")) {
             return deviceToolManager.adjustBrightness()
         }
 
-        // App launch
-        if (lower.startsWith("open ") || lower.startsWith("launch ") || lower.startsWith("start app ")) {
-            val target = query.substringAfter(" ").trim()
-            if (target.isNotEmpty()) {
-                return deviceToolManager.openApp(null, target)
-            }
-        }
-
-        // Call contact
-        if (lower.startsWith("call ") || lower.startsWith("dial ") || lower.startsWith("phone ")) {
-            val target = query.substringAfter(" ").trim()
-            if (target.isNotEmpty()) {
-                return deviceToolManager.searchAndCallContact(target)
-            }
-        }
-
-        // WhatsApp
+        // WhatsApp (Hindi & English commands)
         if (lower.contains("whatsapp") || lower.startsWith("message ")) {
-            var contact = "Friend"
-            var message = "Hey, what's up?"
+            var contact = "Contact"
+            var message = "Hello from MM Assistant"
             if (lower.contains(" to ")) {
                 val afterTo = query.substringAfter(" to ")
                 contact = afterTo.substringBefore(" saying ").substringBefore(" message ").trim()
                 message = if (afterTo.contains(" saying ")) afterTo.substringAfter(" saying ").trim()
                 else if (afterTo.contains(" message ")) afterTo.substringAfter(" message ").trim()
-                else "Hey from MM!"
+                else "Hello Boss"
+            } else if (lower.contains(" ko ") && (lower.contains("message") || lower.contains("bhejo"))) {
+                contact = query.substringBefore(" ko ").substringAfter("whatsapp ").trim()
+                message = query.substringAfter("message ").substringAfter("bhejo ").trim().ifEmpty { "Hello" }
             } else if (lower.startsWith("whatsapp ")) {
                 contact = query.substringAfter("whatsapp ").trim()
             }
             return deviceToolManager.sendWhatsAppMessage(contact, message)
         }
 
+        // Call contact (Hindi & English)
+        if (lower.startsWith("call ") || lower.startsWith("dial ") || lower.startsWith("phone ") || 
+            lower.contains("ko call") || lower.contains("ko phone lagao") || lower.contains("call lagao") || lower.contains("phone lagao")) {
+            val target = when {
+                lower.contains("ko call") -> query.substringBefore("ko call").trim()
+                lower.contains("ko phone lagao") -> query.substringBefore("ko phone lagao").trim()
+                lower.contains("call lagao") -> query.substringAfter("call lagao").trim()
+                lower.contains("phone lagao") -> query.substringAfter("phone lagao").trim()
+                else -> query.substringAfter(" ").trim()
+            }
+            if (target.isNotEmpty()) {
+                return deviceToolManager.searchAndCallContact(target)
+            }
+        }
+
+        // App launch (Hindi & English)
+        if (lower.startsWith("open ") || lower.startsWith("launch ") || lower.startsWith("start app ") || 
+            lower.contains(" kholo") || lower.contains(" open karo") || lower.contains(" chalu karo")) {
+            val target = when {
+                lower.contains(" kholo") -> query.substringBefore(" kholo").trim()
+                lower.contains(" open karo") -> query.substringBefore(" open karo").trim()
+                lower.contains(" chalu karo") -> query.substringBefore(" chalu karo").trim()
+                else -> query.substringAfter(" ").trim()
+            }
+            if (target.isNotEmpty()) {
+                return deviceToolManager.openApp(null, target)
+            }
+        }
+
         // Gmail
         if (lower.contains("email") || lower.contains("mail") || lower.startsWith("send gmail")) {
             var recipient = "colleague@example.com"
-            var subject = "Quick note from MM Assistant"
-            var body = "Hey there! Sending this note via MM offline voice assistant."
+            var subject = "Note from MM Assistant"
+            var body = "Hello, sending this note via MM voice assistant for Boss."
 
             if (lower.contains("to ")) {
                 recipient = query.substringAfter("to ").substringBefore(" ").trim()
@@ -225,33 +310,36 @@ class LocalInferenceEngine(
             return deviceToolManager.sendGmail(recipient, subject, body)
         }
 
-        // Flashlight
-        if (lower.contains("flashlight") || lower.contains("torch")) {
-            val enable = !lower.contains("off") && !lower.contains("stop")
-            return deviceToolManager.toggleFlashlight(enable)
-        }
-
-        // Volume adjustment
-        if (lower.contains("volume") || lower.contains("sound") || lower.contains("quiet") || lower.contains("loud")) {
+        // Volume adjustment (Hindi & English)
+        if (lower.contains("volume") || lower.contains("sound") || lower.contains("awaaz") || lower.contains("shor")) {
             val mode = when {
-                lower.contains("night") || lower.contains("sleep") || lower.contains("bed") -> "night"
-                lower.contains("quiet") || lower.contains("meeting") || lower.contains("silent") -> "meeting"
-                lower.contains("gym") || lower.contains("party") || lower.contains("loud") -> "gym"
-                lower.contains("car") || lower.contains("drive") -> "car"
+                lower.contains("night") || lower.contains("sleep") || lower.contains("raat") -> "night"
+                lower.contains("quiet") || lower.contains("meeting") || lower.contains("silent") || lower.contains("shant") -> "meeting"
+                lower.contains("gym") || lower.contains("party") || lower.contains("loud") || lower.contains("tez") || lower.contains("badhao") -> "gym"
+                lower.contains("car") || lower.contains("drive") || lower.contains("gaadi") -> "car"
                 else -> "auto"
             }
             return deviceToolManager.adjustDeviceVolume(streamType = "all", contextMode = mode)
         }
 
-        // Device Status
-        if (lower.contains("battery") || lower.contains("status") || lower.contains("device check") || lower.contains("charge")) {
+        // Device Status (Hindi & English)
+        if (lower.contains("battery") || lower.contains("status") || lower.contains("device check") || 
+            lower.contains("charge") || lower.contains("charge kitna") || lower.contains("battery kitni")) {
             return deviceToolManager.getDeviceStatus()
         }
 
-        // Music
-        if (lower.startsWith("play ") || lower.contains("song") || lower.contains("track")) {
-            val song = query.substringAfter("play ").trim()
-            return deviceToolManager.playMusic(song)
+        // Music (Hindi & English)
+        if (lower.startsWith("play ") || lower.contains("gaana bajao") || lower.contains("song bajao") || 
+            lower.contains("music chalao") || lower.contains("gaana chalao") || lower.contains("song chalao") || 
+            lower.contains("track")) {
+            val song = when {
+                lower.contains("gaana bajao") -> query.substringBefore("gaana bajao").ifEmpty { query.substringAfter("gaana bajao") }.trim()
+                lower.contains("song bajao") -> query.substringBefore("song bajao").ifEmpty { query.substringAfter("song bajao") }.trim()
+                lower.contains("music chalao") -> query.substringBefore("music chalao").ifEmpty { query.substringAfter("music chalao") }.trim()
+                lower.contains("gaana chalao") -> query.substringBefore("gaana chalao").ifEmpty { query.substringAfter("gaana chalao") }.trim()
+                else -> query.substringAfter("play ").trim()
+            }
+            return deviceToolManager.playMusic(song.ifEmpty { "Popular Songs" })
         }
 
         return null
@@ -259,26 +347,27 @@ class LocalInferenceEngine(
 
     private fun generateSassyConversationalResponse(query: String, lower: String): String {
         return when {
-            lower.contains("hello") || lower.contains("hi") || lower.contains("hey") -> {
-                "Hey there handsome! MM is live right here on your phone, offline or online. What's on your mind?"
+            lower.contains("hello") || lower.contains("hi") || lower.contains("hey") || 
+            lower.contains("namaste") || lower.contains("pranam") -> {
+                "Hello Boss! MM is live and ready for your commands, in both Hindi and English. What can I do for you?"
             }
-            lower.contains("how are you") || lower.contains("kya haal") -> {
-                "Feeling ultra-fast and delightfully sharp! Ready to do some damage today?"
+            lower.contains("how are you") || lower.contains("kya haal") || lower.contains("kaise ho") || lower.contains("kaisi ho") -> {
+                "Main bilkul badhiya hoon, Boss! High-speed and ready for all your instructions. How can I assist you today?"
             }
-            lower.contains("who are you") || lower.contains("tum kaun ho") -> {
-                "I'm MM — your witty, confident, and delightfully sassy AI assistant. I run things around here!"
+            lower.contains("who are you") || lower.contains("tum kaun ho") || lower.contains("aap kaun") -> {
+                "Main MM hoon — aapka professional, ultra-fast native AI voice assistant, Boss. Main Hindi aur English dono me full speed se kaam karti hoon!"
             }
-            lower.contains("thank") || lower.contains("shukriya") -> {
-                "Anytime, babe. That’s what your favorite assistant is here for! 😉"
+            lower.contains("thank") || lower.contains("shukriya") || lower.contains("dhanyawad") -> {
+                "Always at your service, Boss! Let me know if you need anything else done."
             }
-            lower.contains("bye") || lower.contains("see you") || lower.contains("goodnight") -> {
-                "Leaving already? Don't miss me too much! MM will be right here when you wake up. 💋"
+            lower.contains("bye") || lower.contains("see you") || lower.contains("goodnight") || lower.contains("alvida") || lower.contains("shubh ratri") -> {
+                "Have a great time, Boss! MM standby mode me rahegi. Jab bhi zaroorat ho, 'Hello MM' bolkar bula lijiye. 💤"
             }
-            lower.contains("love you") || lower.contains("cute") || lower.contains("marry") -> {
-                "Oh, you're sweet! But you know I'm out of your league, right? Let's get some work done first!"
+            lower.contains("language") || lower.contains("bhasha") || lower.contains("hindi") || lower.contains("english") -> {
+                "Main Hindi, English aur Hinglish teeno bhashaon me fluent hoon, Boss. Aap jis bhi bhasha me bolein ya command dein, main turant samajh kar execute karungi!"
             }
             else -> {
-                "I hear you loud and clear on '${query}'. My on-device open-source model has your back offline!"
+                "Command received: '${query}', Boss. Offline model is processing your request with maximum efficiency!"
             }
         }
     }

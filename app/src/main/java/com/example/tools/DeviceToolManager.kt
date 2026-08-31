@@ -44,7 +44,7 @@ class DeviceToolManager(private val context: Context) {
         if (targetPackage.isNullOrEmpty()) {
             return ToolExecutionResult(
                 success = false,
-                message = "I couldn't figure out which app you meant by '$appName'. Try giving me the exact name, babe!"
+                message = "I couldn't identify the application '$appName', Boss. Please specify the exact app name."
             )
         }
 
@@ -143,7 +143,7 @@ class DeviceToolManager(private val context: Context) {
         if (trimmed.isEmpty()) {
             return ToolExecutionResult(
                 success = false,
-                message = "Who are we calling? You forgot to mention a name, darling!"
+                message = "Please specify which contact name or number you would like to call, Boss."
             )
         }
 
@@ -778,5 +778,62 @@ class DeviceToolManager(private val context: Context) {
                 pcManager.sendCommand(cleanAction)
             }
         }
+    }
+
+    /**
+     * App Lock & Stealth Vault Tools
+     */
+    fun lockApp(appName: String, pin: String? = null): ToolExecutionResult {
+        val lockManager = com.example.security.AppLockManager.getInstance(context)
+        return lockManager.lockApp(appName, pin)
+    }
+
+    fun unlockApp(appName: String, pin: String? = null): ToolExecutionResult {
+        val lockManager = com.example.security.AppLockManager.getInstance(context)
+        return lockManager.unlockApp(appName, pin)
+    }
+
+    fun hideApp(appName: String): ToolExecutionResult {
+        val lockManager = com.example.security.AppLockManager.getInstance(context)
+        return lockManager.hideApp(appName)
+    }
+
+    fun unhideApp(appName: String): ToolExecutionResult {
+        val lockManager = com.example.security.AppLockManager.getInstance(context)
+        return lockManager.unhideApp(appName)
+    }
+
+    fun listSecuredApps(): ToolExecutionResult {
+        val lockManager = com.example.security.AppLockManager.getInstance(context)
+        return lockManager.listSecuredApps()
+    }
+
+    /**
+     * Phone Device Lock & Unlock Automation Tools (PIN, Pattern, Password, Swipe)
+     */
+    fun unlockPhone(overrideCredential: String? = null): ToolExecutionResult {
+        val manager = com.example.security.DeviceLockUnlockManager.getInstance(context)
+        return manager.unlockPhone(overrideCredential)
+    }
+
+    fun lockPhone(): ToolExecutionResult {
+        val manager = com.example.security.DeviceLockUnlockManager.getInstance(context)
+        return manager.lockPhone()
+    }
+
+    fun saveDevicePassword(type: String, credential: String): ToolExecutionResult {
+        val manager = com.example.security.DeviceLockUnlockManager.getInstance(context)
+        val lockType = when (type.lowercase(java.util.Locale.ROOT)) {
+            "pattern" -> com.example.security.DeviceLockType.PATTERN
+            "password" -> com.example.security.DeviceLockType.PASSWORD
+            "swipe", "none" -> com.example.security.DeviceLockType.SWIPE
+            else -> com.example.security.DeviceLockType.PIN
+        }
+        return manager.saveCredentials(lockType, credential)
+    }
+
+    fun clearDevicePassword(): ToolExecutionResult {
+        val manager = com.example.security.DeviceLockUnlockManager.getInstance(context)
+        return manager.clearCredentials()
     }
 }

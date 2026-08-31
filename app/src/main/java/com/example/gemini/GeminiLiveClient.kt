@@ -37,8 +37,13 @@ class GeminiLiveClient(
     companion object {
         private const val TAG = "GeminiLiveClient"
         private const val LIVE_WS_URL = "wss://generativelanguage.googleapis.com/ws/google.ai.generativelanguage.v1alpha.GenerativeService.BidiGenerateContent"
-        private const val MODEL_NAME = "models/gemini-2.0-flash-exp"
+        const val DEFAULT_MODEL = "models/gemini-2.5-flash-native-audio-preview-12-2025"
+        const val PRO_MODEL = "models/gemini-2.5-pro"
+        const val FLASH_MODEL = "models/gemini-2.0-flash"
     }
+
+    var selectedModel: String = DEFAULT_MODEL
+    var temperature: Float = 0.3f
 
     private val scope = CoroutineScope(Dispatchers.IO)
     private val okHttpClient = OkHttpClient.Builder()
@@ -64,7 +69,16 @@ class GeminiLiveClient(
     private val _sassyOneLiner = MutableStateFlow(GeminiInstructionManager.SASSY_GREETINGS.first())
     val sassyOneLiner: StateFlow<String> = _sassyOneLiner.asStateFlow()
 
-    private val systemPrompt = GeminiInstructionManager.buildSystemInstruction()
+    private var systemPrompt = GeminiInstructionManager.buildSystemInstruction()
+
+    fun updateConfig(model: String, temp: Float) {
+        selectedModel = model
+        temperature = temp.coerceIn(0.0f, 1.0f)
+        if (isConnected) {
+            disconnect()
+            connect()
+        }
+    }
 
     fun connect() {
         if (isConnected || isConnecting) return
@@ -90,7 +104,7 @@ class GeminiLiveClient(
                 isConnecting = false
                 _assistantState.value = AssistantState.LISTENING
                 sendSetupMessage(webSocket)
-                _sassyOneLiner.value = "I'm listening, sugar. What can MM do for you?"
+                _sassyOneLiner.value = "I'm listening, Boss. What can MM do for you?"
             }
 
             override fun onMessage(webSocket: WebSocket, text: String) {
@@ -119,7 +133,7 @@ class GeminiLiveClient(
                 isConnected = false
                 isConnecting = false
                 _assistantState.value = AssistantState.ERROR
-                _sassyOneLiner.value = "Network hiccup! Tap reconnect and let's get back to it."
+                _sassyOneLiner.value = "Boss, network connection issue encountered. Tap reconnect to restore live voice."
             }
         })
     }
@@ -128,15 +142,16 @@ class GeminiLiveClient(
         try {
             val setupJson = JSONObject().apply {
                 val setupObj = JSONObject().apply {
-                    put("model", MODEL_NAME)
+                    put("model", selectedModel)
 
-                    // Generation config with Audio modality and Aoede voice
+                    // Generation config with Audio modality, temperature, and Aoede voice
                     val genConfig = JSONObject().apply {
                         put("responseModalities", JSONArray().put("AUDIO"))
+                        put("temperature", temperature)
                         val speechConfig = JSONObject().apply {
                             val voiceConfig = JSONObject().apply {
                                 val prebuilt = JSONObject().apply {
-                                    put("voiceName", "Aoede") // Aoede / Kore is a confident, expressive female voice
+                                    put("voiceName", "Aoede") // Aoede / Kore is a confident, expressive voice
                                 }
                                 put("prebuiltVoiceConfig", prebuilt)
                             }
@@ -470,6 +485,147 @@ class GeminiLiveClient(
             put("parameters", params)
         })
 
+        // 16. lockApp
+        list.put(JSONObject().apply {
+            put("name", "lockApp")
+            put("description", "Lock and protect an Android application (or MM Assistant itself) with PIN security (e.g. 'lock WhatsApp', 'lock Instagram', 'lock Gallery', 'lock MM Assistant')")
+            val params = JSONObject().apply {
+                put("type", "OBJECT")
+                val props = JSONObject().apply {
+                    put("appName", JSONObject().apply {
+                        put("type", "STRING")
+                        put("description", "Name of the app to lock (e.g. 'WhatsApp', 'Instagram', 'Photos', 'MM Assistant')")
+                    })
+                    put("pin", JSONObject().apply {
+                        put("type", "STRING")
+                        put("description", "Optional PIN to lock with")
+                    })
+                }
+                put("properties", props)
+                put("required", JSONArray().put("appName"))
+            }
+            put("parameters", params)
+        })
+
+        // 17. unlockApp
+        list.put(JSONObject().apply {
+            put("name", "unlockApp")
+            put("description", "Unlock a secured Android application or all apps (e.g. 'unlock WhatsApp', 'unlock all apps')")
+            val params = JSONObject().apply {
+                put("type", "OBJECT")
+                val props = JSONObject().apply {
+                    put("appName", JSONObject().apply {
+                        put("type", "STRING")
+                        put("description", "Name of app to unlock or 'all' for all apps")
+                    })
+                    put("pin", JSONObject().apply {
+                        put("type", "STRING")
+                        put("description", "Optional verification PIN")
+                    })
+                }
+                put("properties", props)
+                put("required", JSONArray().put("appName"))
+            }
+            put("parameters", params)
+        })
+
+        // 18. hideApp
+        list.put(JSONObject().apply {
+            put("name", "hideApp")
+            put("description", "Hide an application or MM Assistant itself into the stealth vault (e.g. 'hide Instagram', 'hide MM Assistant', 'hide app')")
+            val params = JSONObject().apply {
+                put("type", "OBJECT")
+                val props = JSONObject().apply {
+                    put("appName", JSONObject().apply {
+                        put("type", "STRING")
+                        put("description", "Name of the app to hide or 'MM Assistant' / 'this app'")
+                    })
+                }
+                put("properties", props)
+                put("required", JSONArray().put("appName"))
+            }
+            put("parameters", params)
+        })
+
+        // 19. unhideApp
+        list.put(JSONObject().apply {
+            put("name", "unhideApp")
+            put("description", "Unhide and restore an app from the stealth vault (e.g. 'unhide Instagram', 'unhide MM Assistant', 'unhide all')")
+            val params = JSONObject().apply {
+                put("type", "OBJECT")
+                val props = JSONObject().apply {
+                    put("appName", JSONObject().apply {
+                        put("type", "STRING")
+                        put("description", "Name of the app to unhide or 'all'")
+                    })
+                }
+                put("properties", props)
+                put("required", JSONArray().put("appName"))
+            }
+            put("parameters", params)
+        })
+
+        // 20. listSecuredApps
+        list.put(JSONObject().apply {
+            put("name", "listSecuredApps")
+            put("description", "List all locked apps, hidden apps vault, and app lock security status")
+            val params = JSONObject().apply {
+                put("type", "OBJECT")
+                put("properties", JSONObject())
+            }
+            put("parameters", params)
+        })
+
+        // 21. unlockPhone
+        list.put(JSONObject().apply {
+            put("name", "unlockPhone")
+            put("description", "Unlock user's Android phone screen automatically by entering their saved PIN, Pattern (e.g. 1-2-3-6-9), Password, or Swipe gesture (e.g. 'MM unlock my phone', 'Unlock phone', 'Phone unlock karo')")
+            val params = JSONObject().apply {
+                put("type", "OBJECT")
+                val props = JSONObject().apply {
+                    put("credential", JSONObject().apply {
+                        put("type", "STRING")
+                        put("description", "Optional PIN, Pattern, or Password override if provided by user")
+                    })
+                }
+                put("properties", props)
+            }
+            put("parameters", params)
+        })
+
+        // 22. lockPhone
+        list.put(JSONObject().apply {
+            put("name", "lockPhone")
+            put("description", "Lock and sleep user's phone screen immediately (e.g. 'MM lock my phone', 'Lock phone', 'Lock screen', 'Phone lock kar do')")
+            val params = JSONObject().apply {
+                put("type", "OBJECT")
+                put("properties", JSONObject())
+            }
+            put("parameters", params)
+        })
+
+        // 23. saveDevicePassword
+        list.put(JSONObject().apply {
+            put("name", "saveDevicePassword")
+            put("description", "Save or update the phone's lock screen password, PIN, or pattern in MM Assistant (e.g. 'Save my phone PIN as 1234', 'Set phone pattern 1-2-3-6-9', 'Save phone password Secret123')")
+            val params = JSONObject().apply {
+                put("type", "OBJECT")
+                val props = JSONObject().apply {
+                    put("type", JSONObject().apply {
+                        put("type", "STRING")
+                        put("description", "Credential type: 'PIN', 'PATTERN', 'PASSWORD', or 'SWIPE'")
+                    })
+                    put("credential", JSONObject().apply {
+                        put("type", "STRING")
+                        put("description", "The PIN digits (e.g. '1234'), Pattern string (e.g. '1-2-3-6-9'), or Password text")
+                    })
+                }
+                put("properties", props)
+                put("required", JSONArray().put("type").put("credential"))
+            }
+            put("parameters", params)
+        })
+
         return list
     }
 
@@ -652,6 +808,39 @@ class GeminiLiveClient(
                     val textToType = args["textToType"]?.toString()
                     val customCommand = args["customCommand"]?.toString()
                     deviceToolManager.controlRemotePc(action, targetApp, textToType, customCommand)
+                }
+                "lockApp" -> {
+                    val appName = args["appName"]?.toString() ?: ""
+                    val pin = args["pin"]?.toString()
+                    deviceToolManager.lockApp(appName, pin)
+                }
+                "unlockApp" -> {
+                    val appName = args["appName"]?.toString() ?: ""
+                    val pin = args["pin"]?.toString()
+                    deviceToolManager.unlockApp(appName, pin)
+                }
+                "hideApp" -> {
+                    val appName = args["appName"]?.toString() ?: ""
+                    deviceToolManager.hideApp(appName)
+                }
+                "unhideApp" -> {
+                    val appName = args["appName"]?.toString() ?: ""
+                    deviceToolManager.unhideApp(appName)
+                }
+                "listSecuredApps" -> {
+                    deviceToolManager.listSecuredApps()
+                }
+                "unlockPhone" -> {
+                    val credential = args["credential"]?.toString()
+                    deviceToolManager.unlockPhone(credential)
+                }
+                "lockPhone" -> {
+                    deviceToolManager.lockPhone()
+                }
+                "saveDevicePassword" -> {
+                    val type = args["type"]?.toString() ?: "PIN"
+                    val credential = args["credential"]?.toString() ?: ""
+                    deviceToolManager.saveDevicePassword(type, credential)
                 }
                 else -> {
                     ToolExecutionResult(false, "Unknown tool: $name")

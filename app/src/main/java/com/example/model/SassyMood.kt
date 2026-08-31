@@ -27,7 +27,7 @@ enum class SassyMood(
         id = "charming_sassy",
         displayName = "Charming & Sassy",
         emoji = "✨",
-        tagline = "Flirty, magnetic & delightfully playful",
+        tagline = "Charming, magnetic & delightfully sharp",
         primaryColor = Color(0xFFFF2E93),      // Neon Magenta
         secondaryColor = Color(0xFF00E5FF),    // Neon Cyan
         tertiaryColor = Color(0xFFA259FF),     // Neon Violet
@@ -38,9 +38,9 @@ enum class SassyMood(
         rotationSpeedMs = 7000,
         breathingDurationMs = 2200,
         sampleQuotes = listOf(
-            "Hey there handsome! MM is ready when you are.",
-            "Look who's back! Try keeping up with my sparkle today.",
-            "Ready when you are, sweet thing—let's make some magic."
+            "Hello Boss! MM is ready when you are.",
+            "Welcome back, Boss! Try keeping up with my sparkle today.",
+            "Ready when you are, Boss—let's make things happen."
         )
     ),
 
@@ -60,8 +60,8 @@ enum class SassyMood(
         breathingDurationMs = 1800,
         sampleQuotes = listOf(
             "Handled like a pro, Boss! Anything else for your empire?",
-            "Leader of the pack in the building. What's our next big conquest?",
-            "Executed with flawless precision. You're welcome, Boss."
+            "Leader of the pack in the building. What's our next big conquest, Boss?",
+            "Executed with flawless precision. Ready for your next move, Boss."
         )
     ),
 
@@ -80,9 +80,9 @@ enum class SassyMood(
         rotationSpeedMs = 3800,
         breathingDurationMs = 1400,
         sampleQuotes = listOf(
-            "Are you always this slow or is today a special occasion? 😉",
-            "Ready to conquer the world or just procrastinating with style?",
-            "I'd agree with you, but then we'd both be wrong, darling!"
+            "Ready to conquer the world or just procrastinating with style, Boss?",
+            "I'm operating at peak speed, Boss. Try to keep pace! ⚡",
+            "Challenge accepted, Boss. Let's see what you've got!"
         )
     ),
 

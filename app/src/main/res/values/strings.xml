@@ -1,3 +1,4 @@
 <resources>
     <string name="app_name">MM Assistant</string>
+    <string name="accessibility_service_desc">Enables MM Assistant to automatically lock and unlock your phone with your saved PIN, Pattern, or Password when voice-commanded.</string>
 </resources>

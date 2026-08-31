@@ -15,6 +15,8 @@ val DarkSurfaceVariant = Color(0xFF231C3D)
 val DarkSurfaceCard = Color(0xFF2B224C)
 
 val AccentAmber = Color(0xFFFFB703)
+val NeonAmber = AccentAmber
+val DarkSurfaceBackground = DarkBackground
 val AccentGreen = Color(0xFF06D6A0)
 val AccentCoral = Color(0xFFFF5964)
 

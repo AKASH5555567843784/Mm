@@ -5,32 +5,125 @@
     android:height="108dp"
     android:viewportWidth="108"
     android:viewportHeight="108">
-    <!-- Glowing core soundwave / MM orb within 66dp safe zone (21 to 87) -->
+    
+    <!-- Central AI Glowing Orb & Voice Wave Safe Zone (within 66dp: x:21..87, y:21..87) -->
     <group
         android:pivotX="54"
         android:pivotY="54">
-        <!-- Glowing dynamic sound bars forming stylish 'M M' wave -->
+        
+        <!-- Glowing Core Orb Backing -->
         <path
-            android:fillColor="#FF2E93"
-            android:pathData="M34,44 c-2,0 -3.5,1.5 -3.5,3.5 v17 c0,2 1.5,3.5 3.5,3.5 s3.5,-1.5 3.5,-3.5 v-17 c0,-2 -1.5,-3.5 -3.5,-3.5 Z" />
+            android:pathData="M54,54m-22,0a22,22 0 1,0 44,0a22,22 0 1,0 -44,0">
+            <aapt:attr name="android:fillColor">
+                <gradient
+                    android:gradientRadius="22"
+                    android:centerX="54"
+                    android:centerY="54"
+                    android:startColor="#669D4EDD"
+                    android:endColor="#00000000"
+                    android:type="radial" />
+            </aapt:attr>
+        </path>
+
+        <!-- Left 'M' Geometric Voice Pillar 1 -->
         <path
-            android:fillColor="#FF57B2"
-            android:pathData="M42,34 c-2,0 -3.5,1.5 -3.5,3.5 v37 c0,2 1.5,3.5 3.5,3.5 s3.5,-1.5 3.5,-3.5 v-37 c0,-2 -1.5,-3.5 -3.5,-3.5 Z" />
+            android:pathData="M27,66 L27,42 C27,40.3 28.3,39 30,39 C31.7,39 33,40.3 33,42 L33,66 C33,67.7 31.7,69 30,69 C28.3,69 27,67.7 27,66 Z">
+            <aapt:attr name="android:fillColor">
+                <gradient
+                    android:startY="39"
+                    android:endY="69"
+                    android:startColor="#00E5FF"
+                    android:endColor="#7B2CBF"
+                    android:type="linear" />
+            </aapt:attr>
+        </path>
+
+        <!-- Left 'M' Peak Wave Pillar 2 -->
         <path
-            android:fillColor="#00E5FF"
-            android:pathData="M50,26 c-2.2,0 -4,1.8 -4,4 v48 c0,2.2 1.8,4 4,4 s4,-1.8 4,-4 v-48 c0,-2.2 -1.8,-4 -4,-4 Z" />
+            android:pathData="M35,61 L35,33 C35,31.3 36.3,30 38,30 C39.7,30 41,31.3 41,33 L41,61 C41,62.7 39.7,64 38,64 C36.3,64 35,62.7 35,61 Z">
+            <aapt:attr name="android:fillColor">
+                <gradient
+                    android:startY="30"
+                    android:endY="64"
+                    android:startColor="#00F5FF"
+                    android:endColor="#FF007F"
+                    android:type="linear" />
+            </aapt:attr>
+        </path>
+
+        <!-- Left 'M' / Center Harmonic Wave Pillar 3 -->
         <path
-            android:fillColor="#00E5FF"
-            android:pathData="M58,26 c-2.2,0 -4,1.8 -4,4 v48 c0,2.2 1.8,4 4,4 s4,-1.8 4,-4 v-48 c0,-2.2 -1.8,-4 -4,-4 Z" />
+            android:pathData="M43,67 L43,45 C43,43.3 44.3,42 46,42 C47.7,42 49,43.3 49,45 L49,67 C49,68.7 47.7,70 46,70 C44.3,70 43,68.7 43,67 Z">
+            <aapt:attr name="android:fillColor">
+                <gradient
+                    android:startY="42"
+                    android:endY="70"
+                    android:startColor="#FF2E93"
+                    android:endColor="#9D4EDD"
+                    android:type="linear" />
+            </aapt:attr>
+        </path>
+
+        <!-- Center AI Heart Core (Pulsing Orb Ring) -->
         <path
-            android:fillColor="#FF57B2"
-            android:pathData="M66,34 c-2,0 -3.5,1.5 -3.5,3.5 v37 c0,2 1.5,3.5 3.5,3.5 s3.5,-1.5 3.5,-3.5 v-37 c0,-2 -1.5,-3.5 -3.5,-3.5 Z" />
+            android:pathData="M54,54m-5,0a5,5 0 1,0 10,0a5,5 0 1,0 -10,0"
+            android:fillColor="#00FFFF" />
         <path
-            android:fillColor="#FF2E93"
-            android:pathData="M74,44 c-2,0 -3.5,1.5 -3.5,3.5 v17 c0,2 1.5,3.5 3.5,3.5 s3.5,-1.5 3.5,-3.5 v-17 c0,-2 -1.5,-3.5 -3.5,-3.5 Z" />
-        <!-- Top playful AI spark -->
+            android:pathData="M54,54m-8,0a8,8 0 1,0 16,0a8,8 0 1,0 -16,0"
+            android:strokeColor="#FFFFFF"
+            android:strokeAlpha="0.6"
+            android:strokeWidth="1.2" />
+
+        <!-- Right 'M' Harmonic Wave Pillar 4 -->
         <path
-            android:fillColor="#FFFFFF"
-            android:pathData="M54,18 L55.5,21.5 L59,23 L55.5,24.5 L54,28 L52.5,24.5 L49,23 L52.5,21.5 Z" />
+            android:pathData="M59,67 L59,45 C59,43.3 60.3,42 62,42 C63.7,42 65,43.3 65,45 L65,67 C65,68.7 63.7,70 62,70 C60.3,70 59,68.7 59,67 Z">
+            <aapt:attr name="android:fillColor">
+                <gradient
+                    android:startY="42"
+                    android:endY="70"
+                    android:startColor="#9D4EDD"
+                    android:endColor="#FF2E93"
+                    android:type="linear" />
+            </aapt:attr>
+        </path>
+
+        <!-- Right 'M' Peak Wave Pillar 5 -->
+        <path
+            android:pathData="M67,61 L67,33 C67,31.3 68.3,30 70,30 C71.7,30 73,31.3 73,33 L73,61 C73,62.7 71.7,64 70,64 C68.3,64 67,62.7 67,61 Z">
+            <aapt:attr name="android:fillColor">
+                <gradient
+                    android:startY="30"
+                    android:endY="64"
+                    android:startColor="#FF007F"
+                    android:endColor="#00F5FF"
+                    android:type="linear" />
+            </aapt:attr>
+        </path>
+
+        <!-- Right 'M' Geometric Voice Pillar 6 -->
+        <path
+            android:pathData="M75,66 L75,42 C75,40.3 76.3,39 78,39 C79.7,39 81,40.3 81,42 L81,66 C81,67.7 79.7,69 78,69 C76.3,69 75,67.7 75,66 Z">
+            <aapt:attr name="android:fillColor">
+                <gradient
+                    android:startY="39"
+                    android:endY="69"
+                    android:startColor="#7B2CBF"
+                    android:endColor="#00E5FF"
+                    android:type="linear" />
+            </aapt:attr>
+        </path>
+
+        <!-- Dynamic AI Spark Star at the Apex -->
+        <path
+            android:pathData="M54,23 L55.8,27.2 L60,29 L55.8,30.8 L54,35 L52.2,30.8 L48,29 L52.2,27.2 Z"
+            android:fillColor="#FFFFFF" />
+
+        <!-- Base MM Text Monogram Sub-Badge -->
+        <path
+            android:pathData="M43,76 L45,76 L48,81 L51,76 L53,76 L53,83 L51.2,83 L51.2,78.5 L48.8,82.5 L47.2,82.5 L44.8,78.5 L44.8,83 L43,83 Z"
+            android:fillColor="#00E5FF" />
+        <path
+            android:pathData="M55,76 L57,76 L60,81 L63,76 L65,76 L65,83 L63.2,83 L63.2,78.5 L60.8,82.5 L59.2,82.5 L56.8,78.5 L56.8,83 L55,83 Z"
+            android:fillColor="#FF2E93" />
     </group>
 </vector>
