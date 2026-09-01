@@ -65,6 +65,7 @@ import com.example.ui.components.PermissionsOnboardingDialog
 import com.example.ui.components.SassySubtitleCard
 import com.example.ui.components.ToolExecutionBadge
 import com.example.ui.components.VoiceQuickChips
+import com.example.ui.components.WakeWordStatusIndicator
 import com.example.ui.components.WaveformVisualizer
 import com.example.ui.theme.DarkBackground
 import com.example.ui.theme.DarkSurface
@@ -91,6 +92,7 @@ fun MMAssistantScreen(
     val isPrivacyMode by viewModel.isPrivacyMode.collectAsState()
     val isMuted by viewModel.isMuted.collectAsState()
     val isSpeechOutputMuted by viewModel.isSpeechOutputMuted.collectAsState()
+    val isWakeWordListening by viewModel.isWakeWordListening.collectAsState()
     val isSpeechRecognizerActive by viewModel.isSpeechRecognizerActive.collectAsState()
     val wakeWordSensitivity by viewModel.wakeWordSensitivity.collectAsState()
     val isBatteryExempt by viewModel.isBatteryExempt.collectAsState()
@@ -141,6 +143,8 @@ fun MMAssistantScreen(
     val temperature by viewModel.temperature.collectAsState()
     val isZeroFabricationEnabled by viewModel.isZeroFabricationEnabled.collectAsState()
     val isActionOrientedEnabled by viewModel.isActionOrientedEnabled.collectAsState()
+    val sassyIntensity by viewModel.sassyIntensity.collectAsState()
+    val transcripts by viewModel.transcripts.collectAsState()
 
     var isSettingsOpen by remember { mutableStateOf(false) }
     var showRevealPreview by remember { mutableStateOf(false) }
@@ -283,7 +287,20 @@ fun MMAssistantScreen(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalAlignment = Alignment.CenterHorizontally
                 ) {
-                    Spacer(modifier = Modifier.height(8.dp))
+                    Spacer(modifier = Modifier.height(4.dp))
+
+                    // Persistent Real-Time Wake-Word Listening Status Indicator
+                    WakeWordStatusIndicator(
+                        isServiceRunning = isServiceRunning,
+                        isPrivacyMode = isPrivacyMode,
+                        isMuted = isMuted,
+                        isWakeWordListening = isWakeWordListening,
+                        onToggleListening = { viewModel.togglePrivacyMode() },
+                        onTestWakeTrigger = { phrase -> viewModel.testWakeWordTrigger(phrase) },
+                        mood = sassyMood,
+                        sensitivity = wakeWordSensitivity,
+                        modifier = Modifier.padding(bottom = 10.dp)
+                    )
 
                     // Dynamic Tool Execution Badge (shown cleanly when a device tool is executing)
                     AnimatedVisibility(
@@ -307,19 +324,23 @@ fun MMAssistantScreen(
                         modifier = Modifier.padding(vertical = 12.dp)
                     )
 
-                    // Dynamic Reactive Waveform Visualizer
+                    // Dynamic Reactive Waveform & Pulse Visualizer
                     WaveformVisualizer(
                         amplitude = combinedAmplitude,
-                        isActive = assistantState == AssistantState.SPEAKING || assistantState == AssistantState.LISTENING
+                        isActive = assistantState == AssistantState.SPEAKING || assistantState == AssistantState.LISTENING,
+                        state = assistantState,
+                        mood = sassyMood
                     )
 
                     Spacer(modifier = Modifier.height(14.dp))
 
-                    // Sassy Subtitle & Live Speech Card with dynamic mood pill & response quote
+                    // Sassy Subtitle & Live Speech Card with dynamic mood pill & TTS vocalize action
                     SassySubtitleCard(
                         quote = sassyQuote,
                         state = assistantState,
-                        mood = sassyMood
+                        mood = sassyMood,
+                        onVocalizeClick = { viewModel.vocalizeCurrentResponse() },
+                        isSpeaking = assistantState == AssistantState.SPEAKING
                     )
                 }
 
@@ -374,6 +395,10 @@ fun MMAssistantScreen(
         if (isSettingsOpen) {
             MMAssistantSettingsModal(
                 onDismiss = { isSettingsOpen = false },
+                sassyIntensity = sassyIntensity,
+                onIntensitySelected = { viewModel.setSassyIntensity(it) },
+                transcripts = transcripts,
+                onClearHistory = { viewModel.clearConversationHistory() },
                 selectedAiModel = selectedAiModel,
                 temperature = temperature,
                 isZeroFabricationEnabled = isZeroFabricationEnabled,

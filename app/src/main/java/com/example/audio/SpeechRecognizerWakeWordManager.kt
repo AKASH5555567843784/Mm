@@ -32,22 +32,37 @@ class SpeechRecognizerWakeWordManager(
 
         // Wake word trigger keywords & variations (English & Hindi/Hinglish)
         val WAKE_WORDS = listOf(
+            // Primary 1. Hey MM, 2. Hello MM, 3. Okay MM
             "hey mm",
             "hello mm",
-            "hi mm",
+            "okay mm",
             "ok mm",
+            "okey mm",
+            
+            // Additional natural variations
+            "hi mm",
             "hey m m",
             "hello m m",
+            "okay m m",
+            "ok m m",
             "hey em em",
+            "hello em em",
+            "okay em em",
             "hey emma",
+            "hello emma",
+            "okay emma",
             "hey mama",
             "hey aim",
             "mm assistant",
             "hey mm assistant",
             "hello mm assistant",
+            "okay mm assistant",
+            "wake up mm",
             "suno mm",
             "mm suno",
             "namaste mm",
+            "batao mm",
+            "kya haal hai mm",
             "mm",
             "m m"
         )
@@ -271,7 +286,7 @@ class SpeechRecognizerWakeWordManager(
             if (token == "mm" || token == "m.m.") {
                 return "mm"
             }
-            if (i > 0 && (tokens[i - 1] == "hey" || tokens[i - 1] == "hello" || tokens[i - 1] == "hi") && (token == "mm" || token == "m" || token == "em")) {
+            if (i > 0 && (tokens[i - 1] == "hey" || tokens[i - 1] == "hello" || tokens[i - 1] == "hi" || tokens[i - 1] == "okay" || tokens[i - 1] == "ok" || tokens[i - 1] == "okey") && (token == "mm" || token == "m" || token == "em")) {
                 return "${tokens[i - 1]} mm"
             }
         }

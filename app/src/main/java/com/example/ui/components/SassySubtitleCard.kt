@@ -10,6 +10,7 @@ import androidx.compose.animation.slideOutVertically
 import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -22,6 +23,10 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.VolumeOff
+import androidx.compose.material.icons.automirrored.filled.VolumeUp
+import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
@@ -49,7 +54,9 @@ fun SassySubtitleCard(
     quote: String,
     state: AssistantState,
     modifier: Modifier = Modifier,
-    mood: SassyMood = LocalSassyMood.current
+    mood: SassyMood = LocalSassyMood.current,
+    onVocalizeClick: (() -> Unit)? = null,
+    isSpeaking: Boolean = false
 ) {
     val animatedBorderPrimary by animateColorAsState(
         targetValue = mood.primaryColor,
@@ -165,17 +172,61 @@ fun SassySubtitleCard(
                 )
             }
 
-            Spacer(modifier = Modifier.height(6.dp))
+            Spacer(modifier = Modifier.height(8.dp))
 
-            Text(
-                text = mood.tagline,
-                style = MaterialTheme.typography.labelSmall.copy(
-                    color = TextSecondary.copy(alpha = 0.7f),
-                    fontSize = 11.sp,
-                    textAlign = TextAlign.Center
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(
+                    text = mood.tagline,
+                    style = MaterialTheme.typography.labelSmall.copy(
+                        color = TextSecondary.copy(alpha = 0.7f),
+                        fontSize = 11.sp
+                    ),
+                    modifier = Modifier.weight(1f)
                 )
-            )
+
+                if (onVocalizeClick != null) {
+                    Surface(
+                        shape = RoundedCornerShape(12.dp),
+                        color = if (isSpeaking) mood.primaryColor.copy(alpha = 0.3f) else Color.White.copy(alpha = 0.08f),
+                        border = androidx.compose.foundation.BorderStroke(
+                            0.8.dp,
+                            if (isSpeaking) mood.primaryColor else Color.White.copy(alpha = 0.2f)
+                        ),
+                        modifier = Modifier
+                            .clip(RoundedCornerShape(12.dp))
+                            .clickable { onVocalizeClick() }
+                            .testTag("tts_vocalize_button")
+                    ) {
+                        Row(
+                            modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Icon(
+                                imageVector = if (isSpeaking) Icons.AutoMirrored.Filled.VolumeOff else Icons.AutoMirrored.Filled.VolumeUp,
+                                contentDescription = "Vocalize with TextToSpeech",
+                                tint = if (isSpeaking) mood.primaryColor else Color.White,
+                                modifier = Modifier.size(13.dp)
+                            )
+                            Spacer(modifier = Modifier.width(4.dp))
+                            Text(
+                                text = if (isSpeaking) "STOP" else "VOCALIZE",
+                                style = MaterialTheme.typography.labelSmall.copy(
+                                    color = if (isSpeaking) mood.primaryColor else Color.White,
+                                    fontWeight = FontWeight.Bold,
+                                    fontSize = 9.sp,
+                                    letterSpacing = 0.5.sp
+                                )
+                            )
+                        }
+                    }
+                }
+            }
         }
     }
 }
+
 

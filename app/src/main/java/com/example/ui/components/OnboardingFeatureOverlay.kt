@@ -358,8 +358,8 @@ private fun VoiceGesturesGuide(moodColor: Color) {
         OnboardingItemRow(
             icon = Icons.Default.Mic,
             iconColor = NeonMagenta,
-            title = "Say \"Hey MM\" Wake Word",
-            description = "Hands-free 24/7 activation! Just say \"Hey MM\" or \"MM\" even with your screen in standby."
+            title = "Wake Words: \"Hey MM\", \"Hello MM\", \"Okay MM\"",
+            description = "Hands-free 24/7 activation! Say \"Hey MM\", \"Hello MM\", \"Okay MM\", \"Hi MM\", or \"Suno MM\" even with your screen in standby."
         )
 
         OnboardingItemRow(

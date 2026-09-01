@@ -9,6 +9,8 @@ import androidx.lifecycle.viewModelScope
 import com.example.audio.AudioRecordStreamer
 import com.example.audio.AudioStreamPlayer
 import com.example.audio.OfflineSpeechEngine
+import com.example.data.local.MMAssistantDatabase
+import com.example.data.repository.ConversationRepository
 import com.example.gemini.GeminiLiveClient
 import com.example.model.AssistantState
 import com.example.model.LiveTranscript
@@ -36,6 +38,10 @@ class MMAssistantViewModel(application: Application) : AndroidViewModel(applicat
 
     private val context = application.applicationContext
     private val toolManager = DeviceToolManager(context)
+
+    // Local Room Database & Conversation History Repository
+    private val database = MMAssistantDatabase.getInstance(context)
+    val conversationRepository = ConversationRepository(database.conversationDao())
 
     // Hybrid Engine & Network Monitor
     val networkMonitor = NetworkStateMonitor(context)
@@ -103,6 +109,12 @@ class MMAssistantViewModel(application: Application) : AndroidViewModel(applicat
     private val _localSassyQuote = MutableStateFlow("Hello Boss! MM is ready to take over your phone.")
     val sassyOneLiner: StateFlow<String> = _localSassyQuote.asStateFlow()
 
+    // Sassy Persona Intensity & Tone Settings
+    private val _sassyIntensity = MutableStateFlow(
+        com.example.model.SassyIntensity.fromId(appPrefs.getString("sassy_intensity", com.example.model.SassyIntensity.DEFAULT.id))
+    )
+    val sassyIntensity: StateFlow<com.example.model.SassyIntensity> = _sassyIntensity.asStateFlow()
+
     // Sassy Mood & Visual Theme State Manager
     private val _currentSassyMood = MutableStateFlow(com.example.model.SassyMood.CHARMING_SASSY)
     val currentSassyMood: StateFlow<com.example.model.SassyMood> = _currentSassyMood.asStateFlow()
@@ -135,7 +147,9 @@ class MMAssistantViewModel(application: Application) : AndroidViewModel(applicat
 
     // Sassy prompt suggestions for fast voice interaction
     val quickVoiceSuggestions = listOf(
+        "Hey MM",
         "Hello MM",
+        "Okay MM",
         "MM Unlock My Phone",
         "Lock Phone",
         "Lock WhatsApp",
@@ -177,7 +191,8 @@ class MMAssistantViewModel(application: Application) : AndroidViewModel(applicat
         _selectedAiModel.value = model
         MMAssistantForegroundService.activeServiceInstance?.geminiClient?.updateConfig(
             model = model,
-            temp = _temperature.value
+            temp = _temperature.value,
+            intensity = _sassyIntensity.value
         )
         _localSassyQuote.value = "AI Model switched to ${model.substringAfterLast("/")}, Boss."
     }
@@ -187,8 +202,33 @@ class MMAssistantViewModel(application: Application) : AndroidViewModel(applicat
         _temperature.value = clamped
         MMAssistantForegroundService.activeServiceInstance?.geminiClient?.updateConfig(
             model = _selectedAiModel.value,
-            temp = clamped
+            temp = clamped,
+            intensity = _sassyIntensity.value
         )
+    }
+
+    fun setSassyIntensity(intensity: com.example.model.SassyIntensity) {
+        _sassyIntensity.value = intensity
+        appPrefs.edit().putString("sassy_intensity", intensity.id).apply()
+        MMAssistantForegroundService.activeServiceInstance?.geminiClient?.updateConfig(
+            model = _selectedAiModel.value,
+            temp = _temperature.value,
+            intensity = intensity
+        )
+        val quote = intensity.sampleQuotes.random()
+        _localSassyQuote.value = quote
+        addLocalTranscript(LiveTranscript.Sender.SYSTEM, "✨ Sassy persona intensity set to ${intensity.displayName} (${intensity.emoji})", isTool = true)
+        offlineSpeechEngine?.speak(quote)
+    }
+
+    fun clearConversationHistory() {
+        MMAssistantForegroundService.activeServiceInstance?.geminiClient?.clearTranscripts()
+        viewModelScope.launch {
+            conversationRepository.clearHistory()
+            _localTranscripts.value = emptyList()
+        }
+        _localSassyQuote.value = "Conversation history wiped clean, Boss! Fresh slate ready."
+        addLocalTranscript(LiveTranscript.Sender.SYSTEM, "🗑️ Conversation history and transcripts cleared.", isTool = true)
     }
 
     fun toggleZeroFabrication(enabled: Boolean) {
@@ -296,7 +336,16 @@ class MMAssistantViewModel(application: Application) : AndroidViewModel(applicat
     init {
         checkPermissionsInitial()
         initOfflineSpeechEngine()
+        observePersistedConversations()
         startSyncLoop()
+    }
+
+    private fun observePersistedConversations() {
+        viewModelScope.launch {
+            conversationRepository.allTranscripts.collect { savedTranscripts ->
+                _localTranscripts.value = savedTranscripts
+            }
+        }
     }
 
     private fun initOfflineSpeechEngine() {
@@ -310,9 +359,39 @@ class MMAssistantViewModel(application: Application) : AndroidViewModel(applicat
                 _localAssistantState.value = AssistantState.DISCONNECTED
             },
             onAmplitudeChanged = { amp ->
-                _micLevel.value = amp
+                if (_localAssistantState.value == AssistantState.SPEAKING || offlineSpeechEngine?.isSpeaking?.value == true) {
+                    _speakerLevel.value = amp
+                } else {
+                    _micLevel.value = amp
+                }
+            },
+            onSpeakingStateChanged = { speaking ->
+                if (speaking) {
+                    _localAssistantState.value = AssistantState.SPEAKING
+                } else if (_localAssistantState.value == AssistantState.SPEAKING) {
+                    _localAssistantState.value = AssistantState.STANDBY
+                }
             }
         )
+    }
+
+    val isTtsSpeaking: StateFlow<Boolean> = offlineSpeechEngine?.isSpeaking ?: MutableStateFlow(false)
+
+    fun vocalizeCurrentResponse() {
+        val textToSpeak = _localSassyQuote.value
+        if (textToSpeak.isNotBlank()) {
+            if (offlineSpeechEngine?.isSpeaking?.value == true) {
+                offlineSpeechEngine?.stopSpeaking()
+            } else {
+                offlineSpeechEngine?.speak(textToSpeak)
+            }
+        }
+    }
+
+    fun vocalizeText(text: String) {
+        if (text.isNotBlank()) {
+            offlineSpeechEngine?.speak(text)
+        }
     }
 
     fun checkPermissionsInitial() {
@@ -350,7 +429,14 @@ class MMAssistantViewModel(application: Application) : AndroidViewModel(applicat
                     if (_localAssistantState.value != newState) _localAssistantState.value = newState
 
                     val newTranscripts = service.geminiClient.transcripts.value
-                    if (_localTranscripts.value != newTranscripts) _localTranscripts.value = newTranscripts
+                    if (_localTranscripts.value != newTranscripts && newTranscripts.isNotEmpty()) {
+                        val currentIds = _localTranscripts.value.map { it.id }.toSet()
+                        val freshlyAdded = newTranscripts.filterNot { currentIds.contains(it.id) }
+                        if (freshlyAdded.isNotEmpty()) {
+                            conversationRepository.saveTranscripts(freshlyAdded)
+                        }
+                        _localTranscripts.value = newTranscripts
+                    }
 
                     val newActiveTool = service.geminiClient.activeToolCall.value
                     if (_localActiveTool.value != newActiveTool) _localActiveTool.value = newActiveTool
@@ -567,9 +653,16 @@ class MMAssistantViewModel(application: Application) : AndroidViewModel(applicat
     }
 
     private fun addLocalTranscript(sender: LiveTranscript.Sender, text: String, isTool: Boolean = false) {
+        val transcript = LiveTranscript(sender = sender, text = text, isToolCall = isTool)
         val current = _localTranscripts.value.toMutableList()
-        current.add(LiveTranscript(sender = sender, text = text, isToolCall = isTool))
+        current.add(transcript)
         _localTranscripts.value = current
+        viewModelScope.launch(Dispatchers.IO) {
+            conversationRepository.saveTranscript(
+                transcript = transcript,
+                sassyIntensityLevel = _sassyIntensity.value.level
+            )
+        }
     }
 
     fun executeQuickToolDirectly(toolName: String) {
@@ -697,6 +790,7 @@ class MMAssistantViewModel(application: Application) : AndroidViewModel(applicat
         val sampleQuote = mood.sampleQuotes.random()
         _localSassyQuote.value = sampleQuote
         addLocalTranscript(LiveTranscript.Sender.MM, sampleQuote)
+        offlineSpeechEngine?.speak(sampleQuote)
     }
 
     fun reconnect() {

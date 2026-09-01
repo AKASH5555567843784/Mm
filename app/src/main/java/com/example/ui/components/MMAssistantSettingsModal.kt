@@ -61,8 +61,11 @@ import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.material.icons.filled.LocalFireDepartment
 import androidx.compose.material.icons.filled.PhonelinkLock
+import com.example.model.LiveTranscript
 import com.example.model.LocalGGUFModel
+import com.example.model.SassyIntensity
 import com.example.model.SassyMood
 import com.example.pc.RemotePcManager
 import com.example.security.DeviceLockType
@@ -79,6 +82,7 @@ enum class SettingsCategory(
     val title: String,
     val icon: ImageVector
 ) {
+    PERSONA_MEMORY("Persona & History", Icons.Default.LocalFireDepartment),
     AI_INTELLIGENCE("AI Model & Engine", Icons.Default.AutoAwesome),
     MOOD_THEME("Mood & Theme", Icons.Default.Palette),
     DEVICE_UNLOCK("Phone Unlock", Icons.Default.PhonelinkLock),
@@ -94,6 +98,11 @@ enum class SettingsCategory(
 @Composable
 fun MMAssistantSettingsModal(
     onDismiss: () -> Unit,
+    // Sassy Persona Intensity & History
+    sassyIntensity: SassyIntensity = SassyIntensity.CLASSIC_SASSY,
+    onIntensitySelected: (SassyIntensity) -> Unit = {},
+    transcripts: List<LiveTranscript> = emptyList(),
+    onClearHistory: () -> Unit = {},
     // AI Model & Intelligence Configuration
     selectedAiModel: String = com.example.gemini.GeminiLiveClient.DEFAULT_MODEL,
     temperature: Float = 0.3f,
@@ -320,7 +329,31 @@ fun MMAssistantSettingsModal(
                 verticalArrangement = Arrangement.spacedBy(16.dp)
             ) {
                 when (SettingsCategory.entries[selectedCategoryIndex]) {
+                    SettingsCategory.PERSONA_MEMORY -> {
+                        SassyPersonaAndHistoryCard(
+                            currentIntensity = sassyIntensity,
+                            onIntensitySelected = onIntensitySelected,
+                            transcripts = transcripts,
+                            onClearHistory = onClearHistory,
+                            currentMood = currentMood
+                        )
+                        SassyMoodControlCard(
+                            currentMood = currentMood,
+                            isAutoDetectionEnabled = isAutoMoodDetection,
+                            onMoodSelected = onMoodSelected,
+                            onToggleAutoDetection = onToggleAutoDetection,
+                            onTriggerMoodSample = onTriggerMoodSample
+                        )
+                    }
+
                     SettingsCategory.AI_INTELLIGENCE -> {
+                        SassyPersonaAndHistoryCard(
+                            currentIntensity = sassyIntensity,
+                            onIntensitySelected = onIntensitySelected,
+                            transcripts = transcripts,
+                            onClearHistory = onClearHistory,
+                            currentMood = currentMood
+                        )
                         AiModelSettingsCard(
                             selectedModel = selectedAiModel,
                             temperature = temperature,
@@ -340,6 +373,13 @@ fun MMAssistantSettingsModal(
                             onMoodSelected = onMoodSelected,
                             onToggleAutoDetection = onToggleAutoDetection,
                             onTriggerMoodSample = onTriggerMoodSample
+                        )
+                        SassyPersonaAndHistoryCard(
+                            currentIntensity = sassyIntensity,
+                            onIntensitySelected = onIntensitySelected,
+                            transcripts = transcripts,
+                            onClearHistory = onClearHistory,
+                            currentMood = currentMood
                         )
                     }
 

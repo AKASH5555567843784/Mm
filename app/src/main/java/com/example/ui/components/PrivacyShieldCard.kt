@@ -220,7 +220,7 @@ fun PrivacyShieldCard(
                             horizontalArrangement = Arrangement.SpaceBetween
                         ) {
                             Text(
-                                text = "👂 Wake triggers: \"Hey MM\", \"Hello MM\", \"MM\"",
+                                text = "👂 Wake triggers: \"Hey MM\", \"Hello MM\", \"Okay MM\", \"MM\"",
                                 style = MaterialTheme.typography.bodySmall,
                                 color = NeonCyan,
                                 fontSize = 11.sp,

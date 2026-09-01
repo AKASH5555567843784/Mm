@@ -8,20 +8,28 @@ import android.speech.SpeechRecognizer
 import android.speech.tts.TextToSpeech
 import android.speech.tts.UtteranceProgressListener
 import android.util.Log
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.isActive
+import kotlinx.coroutines.launch
 import java.util.Locale
+import kotlin.random.Random
 
 /**
  * Provides offline native Android speech recognition and Text-To-Speech (TTS)
- * for open-source local inference when disconnected from Gemini Live.
+ * for open-source local inference and assistant vocalization.
  */
 class OfflineSpeechEngine(
     private val context: Context,
     private val onSpeechRecognized: (String) -> Unit,
     private val onSpeechError: (String) -> Unit,
-    private val onAmplitudeChanged: (Float) -> Unit
+    private val onAmplitudeChanged: (Float) -> Unit,
+    private val onSpeakingStateChanged: ((Boolean) -> Unit)? = null
 ) {
 
     companion object {
@@ -29,9 +37,11 @@ class OfflineSpeechEngine(
         private const val UTTERANCE_ID = "MM_OFFLINE_TTS"
     }
 
+    private val scope = CoroutineScope(Dispatchers.Default)
     private var speechRecognizer: SpeechRecognizer? = null
     private var textToSpeech: TextToSpeech? = null
     private var isTtsReady = false
+    private var ttsAmplitudeJob: Job? = null
 
     private val _isListening = MutableStateFlow(false)
     val isListening: StateFlow<Boolean> = _isListening.asStateFlow()
@@ -57,20 +67,26 @@ class OfflineSpeechEngine(
             if (status == TextToSpeech.SUCCESS) {
                 isTtsReady = true
                 textToSpeech?.language = Locale.US
-                textToSpeech?.setPitch(1.15f) // Slightly higher, youthful, vibrant pitch for MM
-                textToSpeech?.setSpeechRate(1.05f) // Snappy pace
+                textToSpeech?.setPitch(1.12f) // Confident, youthful, vibrant pitch for MM
+                textToSpeech?.setSpeechRate(1.05f) // Snappy cadence
                 textToSpeech?.setOnUtteranceProgressListener(object : UtteranceProgressListener() {
                     override fun onStart(utteranceId: String?) {
                         _isSpeaking.value = true
+                        onSpeakingStateChanged?.invoke(true)
+                        startTtsAmplitudeModulation()
                     }
 
                     override fun onDone(utteranceId: String?) {
                         _isSpeaking.value = false
+                        stopTtsAmplitudeModulation()
+                        onSpeakingStateChanged?.invoke(false)
                         onAmplitudeChanged(0f)
                     }
 
                     override fun onError(utteranceId: String?) {
                         _isSpeaking.value = false
+                        stopTtsAmplitudeModulation()
+                        onSpeakingStateChanged?.invoke(false)
                         onAmplitudeChanged(0f)
                     }
                 })
@@ -79,6 +95,28 @@ class OfflineSpeechEngine(
                 Log.e(TAG, "Failed initializing Native Android TTS.")
             }
         }
+    }
+
+    private fun startTtsAmplitudeModulation() {
+        ttsAmplitudeJob?.cancel()
+        ttsAmplitudeJob = scope.launch {
+            var step = 0
+            while (isActive && _isSpeaking.value) {
+                step++
+                // Generate natural conversational amplitude envelope between 0.35f and 0.90f
+                val base = 0.45f + (kotlin.math.sin(step * 0.4f) * 0.25f).toFloat()
+                val jitter = (Random.nextFloat() * 0.2f) - 0.1f
+                val amp = (base + jitter).coerceIn(0.2f, 0.95f)
+                onAmplitudeChanged(amp)
+                delay(60)
+            }
+            onAmplitudeChanged(0f)
+        }
+    }
+
+    private fun stopTtsAmplitudeModulation() {
+        ttsAmplitudeJob?.cancel()
+        ttsAmplitudeJob = null
     }
 
     fun startListening() {
@@ -174,10 +212,13 @@ class OfflineSpeechEngine(
         }
         try {
             _isSpeaking.value = true
+            onSpeakingStateChanged?.invoke(true)
+            startTtsAmplitudeModulation()
+
             // Check if text contains Devanagari or prominent Hindi markers to switch TTS voice locale smoothly
             val hasHindiChars = text.any { it in '\u0900'..'\u097F' }
-            val targetLocale = if (hasHindiChars) Locale("hi", "IN") else Locale("en", "IN")
-            
+            val targetLocale = if (hasHindiChars) Locale.forLanguageTag("hi-IN") else Locale.forLanguageTag("en-IN")
+
             val langAvailable = textToSpeech?.isLanguageAvailable(targetLocale)
             if (langAvailable == TextToSpeech.LANG_AVAILABLE || langAvailable == TextToSpeech.LANG_COUNTRY_AVAILABLE) {
                 textToSpeech?.language = targetLocale
@@ -192,13 +233,18 @@ class OfflineSpeechEngine(
         } catch (e: Exception) {
             Log.e(TAG, "Error speaking text via TTS", e)
             _isSpeaking.value = false
+            stopTtsAmplitudeModulation()
+            onSpeakingStateChanged?.invoke(false)
         }
     }
 
     fun stopSpeaking() {
         try {
+            stopTtsAmplitudeModulation()
             textToSpeech?.stop()
             _isSpeaking.value = false
+            onSpeakingStateChanged?.invoke(false)
+            onAmplitudeChanged(0f)
         } catch (e: Exception) {
             Log.w(TAG, "Error stopping TTS", e)
         }
@@ -211,3 +257,4 @@ class OfflineSpeechEngine(
         textToSpeech = null
     }
 }
+

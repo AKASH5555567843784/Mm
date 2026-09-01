@@ -44,6 +44,7 @@ class GeminiLiveClient(
 
     var selectedModel: String = DEFAULT_MODEL
     var temperature: Float = 0.3f
+    var sassyIntensity: com.example.model.SassyIntensity = com.example.model.SassyIntensity.CLASSIC_SASSY
 
     private val scope = CoroutineScope(Dispatchers.IO)
     private val okHttpClient = OkHttpClient.Builder()
@@ -69,15 +70,25 @@ class GeminiLiveClient(
     private val _sassyOneLiner = MutableStateFlow(GeminiInstructionManager.SASSY_GREETINGS.first())
     val sassyOneLiner: StateFlow<String> = _sassyOneLiner.asStateFlow()
 
-    private var systemPrompt = GeminiInstructionManager.buildSystemInstruction()
+    private var systemPrompt = GeminiInstructionManager.buildSystemInstruction(sassyIntensity = sassyIntensity)
 
-    fun updateConfig(model: String, temp: Float) {
+    fun updateConfig(
+        model: String = selectedModel,
+        temp: Float = temperature,
+        intensity: com.example.model.SassyIntensity = sassyIntensity
+    ) {
         selectedModel = model
         temperature = temp.coerceIn(0.0f, 1.0f)
+        sassyIntensity = intensity
+        systemPrompt = GeminiInstructionManager.buildSystemInstruction(sassyIntensity = intensity)
         if (isConnected) {
             disconnect()
             connect()
         }
+    }
+
+    fun clearTranscripts() {
+        _transcripts.value = emptyList()
     }
 
     fun connect() {

@@ -204,18 +204,30 @@ fun AssistantBottomRevealSheet(
                 }
             }
 
-            // 3. Center Section: Video / Holographic Animated Visualizer
-            Box(
-                modifier = Modifier
-                    .size(130.dp)
-                    .clip(CircleShape)
-                    .background(Color.Black.copy(alpha = 0.4f)),
-                contentAlignment = Alignment.Center
-            ) {
-                MMAssistantVideoStatePlayer(
-                    assistantState = assistantState,
-                    audioAmplitude = audioAmplitude,
-                    modifier = Modifier.size(124.dp)
+            // 3. Center Section: Video / Holographic Animated Visualizer & Waveform
+            Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                Box(
+                    modifier = Modifier
+                        .size(120.dp)
+                        .clip(CircleShape)
+                        .background(Color.Black.copy(alpha = 0.4f)),
+                    contentAlignment = Alignment.Center
+                ) {
+                    MMAssistantVideoStatePlayer(
+                        assistantState = assistantState,
+                        audioAmplitude = audioAmplitude,
+                        modifier = Modifier.size(116.dp)
+                    )
+                }
+
+                Spacer(modifier = Modifier.height(8.dp))
+
+                WaveformVisualizer(
+                    amplitude = audioAmplitude,
+                    isActive = assistantState == AssistantState.SPEAKING || assistantState == AssistantState.LISTENING,
+                    state = assistantState,
+                    barCount = 16,
+                    modifier = Modifier.height(38.dp)
                 )
             }
 

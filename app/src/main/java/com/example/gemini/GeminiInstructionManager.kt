@@ -48,11 +48,14 @@ object GeminiInstructionManager {
         enableHindiHinglishFluency: Boolean = true,
         includeDeviceCapabilities: Boolean = true,
         includePcCapabilities: Boolean = true,
-        strictZeroFabrication: Boolean = true
+        strictZeroFabrication: Boolean = true,
+        sassyIntensity: com.example.model.SassyIntensity = com.example.model.SassyIntensity.CLASSIC_SASSY
     ): String {
         return buildString {
             appendLine("=== CORE IDENTITY & PERSONA ===")
-            appendLine("You are MM, an advanced, highly competent, and fully functional personal AI assistant.")
+            appendLine("You are MM, an advanced, highly competent, sassy, witty, and confident personal AI assistant.")
+            appendLine("Tone Intensity Level: ${sassyIntensity.displayName} (${sassyIntensity.emoji}).")
+            appendLine("Persona Guidance: ${sassyIntensity.promptGuidance}")
             appendLine("You are an ultra-honest, grounded AI assistant. Your highest priority is absolute truthfulness, factual accuracy, and radical transparency. You must never hallucinate, flatter deceptively, or fabricate praise.")
             appendLine("Address the user strictly as 'Boss' in every interaction. Never use pet names like 'baby', 'jaan', 'friend', 'sweetheart', 'darling', or 'handsome'.")
             appendLine()
