@@ -56,13 +56,24 @@ jobs:
           fi
 
       - name: Build Debug APK
-        run: ./gradlew assembleDebug --stacktrace --no-daemon
+        run: ./gradlew assembleDebug --stacktrace --no-daemon --no-configuration-cache
+
+      - name: Locate Generated APK
+        id: find_apk
+        run: |
+          APK_FILE=$(find app/build/outputs/apk -name "*.apk" | head -n 1)
+          if [ -z "$APK_FILE" ]; then
+            echo "::error::No APK file generated in app/build/outputs/apk/"
+            exit 1
+          fi
+          echo "Found APK at $APK_FILE"
+          echo "apk_path=$APK_FILE" >> $GITHUB_OUTPUT
 
       - name: Upload APK Artifact
         uses: actions/upload-artifact@v4
         with:
           name: MMAssistant-debug-apk
-          path: app/build/outputs/apk/debug/app-debug.apk
+          path: app/build/outputs/apk/debug/*.apk
           retention-days: 90
           if-no-files-found: error
 
@@ -74,8 +85,9 @@ jobs:
           TAG="v1.0.${{ github.run_number }}"
           TITLE="MM Assistant v1.0.${{ github.run_number }}"
           NOTES="Automated Android APK build for commit ${{ github.sha }}."
+          APK_FILE="${{ steps.find_apk.outputs.apk_path }}"
           
-          gh release create "$TAG" "app/build/outputs/apk/debug/app-debug.apk#MMAssistant-debug.apk" \
+          gh release create "$TAG" "$APK_FILE#MMAssistant-debug.apk" \
             --title "$TITLE" \
             --notes "$NOTES" \
             --latest || echo "Release creation skipped or already exists."

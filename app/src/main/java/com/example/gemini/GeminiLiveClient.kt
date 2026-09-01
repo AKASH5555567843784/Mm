@@ -93,9 +93,25 @@ class GeminiLiveClient(
         }
     }
 
-    fun updateConfig(model: String, temp: Float) {
+    fun clearTranscripts() {
+        _transcripts.value = emptyList()
+    }
+
+    fun updateConfig(model: String, temp: Float, intensity: com.example.model.SassyIntensity? = null) {
         selectedModel = model
         temperature = temp.coerceIn(0.0f, 1.0f)
+        if (intensity != null) {
+            val mappedLevel = when (intensity) {
+                com.example.model.SassyIntensity.MILD_POLITE -> com.example.model.SassinessLevel.POLITE
+                com.example.model.SassyIntensity.CLASSIC_SASSY -> com.example.model.SassinessLevel.SASSY
+                com.example.model.SassyIntensity.EXTRA_SPICY -> com.example.model.SassinessLevel.ULTRA_SASSY
+                com.example.model.SassyIntensity.SAVAGE_OVERDRIVE -> com.example.model.SassinessLevel.ULTRA_SASSY
+            }
+            this.sassinessLevel = mappedLevel
+            this.systemPrompt = GeminiInstructionManager.buildSystemInstruction(
+                sassinessLevel = mappedLevel
+            )
+        }
         if (isConnected) {
             disconnect()
             connect()
