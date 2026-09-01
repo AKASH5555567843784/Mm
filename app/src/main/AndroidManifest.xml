@@ -126,6 +126,13 @@
             android:exported="false"
             android:foregroundServiceType="microphone" />
 
+        <!-- Simple Persistent Background Service for Wake-Word Detection using Coroutines & Microphone -->
+        <service
+            android:name=".service.WakeWordBackgroundService"
+            android:enabled="true"
+            android:exported="false"
+            android:foregroundServiceType="microphone" />
+
         <!-- Foreground Service for TelephonyManager Call Announcing -->
         <service
             android:name=".service.CallAnnouncerService"

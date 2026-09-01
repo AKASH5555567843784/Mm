@@ -29,15 +29,25 @@ jobs:
           distribution: 'temurin'
           java-version: '17'
 
+      - name: Set up Android SDK
+        uses: android-actions/setup-android@v3
+
+      - name: Accept Android SDK Licenses & Install Platform 36
+        run: |
+          yes | "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" --licenses || true
+          "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" "platforms;android-36" "build-tools;36.0.0" || true
+
       - name: Setup Gradle
         uses: gradle/actions/setup-gradle@v4
 
       - name: Grant execute permission for gradlew
         run: chmod +x ./gradlew
 
-      - name: Prepare Keystore and Environment
+      - name: Prepare Keystore, Secrets, and Configuration
         run: |
           mkdir -p ~/.android
+          echo "sdk.dir=$ANDROID_HOME" > local.properties
+
           # Decode debug.keystore if base64 file exists, or generate one in root directory and ~/.android
           if [ -f debug.keystore.base64 ]; then
             base64 -d debug.keystore.base64 > debug.keystore || true
@@ -50,9 +60,16 @@ jobs:
           fi
           cp debug.keystore ~/.android/debug.keystore 2>/dev/null || true
           
-          # Ensure .env exists from .env.example for Secrets Gradle Plugin
-          if [ ! -f .env ] && [ -f .env.example ]; then
+          # Ensure .env exists from .env.example or create fallback for Secrets Gradle Plugin
+          if [ -f .env.example ]; then
             cp .env.example .env
+          else
+            echo "GEMINI_API_KEY=PLACEHOLDER_KEY" > .env
+          fi
+
+          # Ensure mock google-services.json exists in app module if missing
+          if [ ! -f app/google-services.json ]; then
+            echo '{"project_info":{"project_number":"123456789","project_id":"mm-assistant-placeholder"},"client":[{"client_info":{"mobilesdk_app_id":"1:123456789:android:abcdef","android_client_info":{"package_name":"com.aistudio.mmassistant.voxai"}},"api_key":[{"current_key":"PLACEHOLDER"}]}]}' > app/google-services.json
           fi
 
       - name: Build Debug APK
