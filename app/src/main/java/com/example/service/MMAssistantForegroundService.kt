@@ -26,6 +26,7 @@ import com.example.audio.SpeechRecognizerWakeWordManager
 import com.example.audio.WakeWordDetector
 import com.example.gemini.GeminiLiveClient
 import com.example.model.AssistantState
+import com.example.model.BatteryOptimizationMode
 import com.example.receiver.MMAssistantWakeWordReceiver
 import com.example.tools.DeviceToolManager
 import kotlinx.coroutines.CoroutineScope
@@ -68,6 +69,27 @@ class MMAssistantForegroundService : Service() {
 
         private val _isWakeWordListening = MutableStateFlow(true)
         val isWakeWordListening: StateFlow<Boolean> = _isWakeWordListening.asStateFlow()
+
+        private val _currentBatteryMode = MutableStateFlow(BatteryOptimizationMode.HIGH_PERFORMANCE)
+        val currentBatteryMode: StateFlow<BatteryOptimizationMode> = _currentBatteryMode.asStateFlow()
+
+        private val _batteryLevel = MutableStateFlow(100)
+        val batteryLevel: StateFlow<Int> = _batteryLevel.asStateFlow()
+
+        private val _isDeviceCharging = MutableStateFlow(false)
+        val isDeviceCharging: StateFlow<Boolean> = _isDeviceCharging.asStateFlow()
+
+        fun applyBatteryOptimization(
+            context: Context,
+            mode: BatteryOptimizationMode,
+            batteryPct: Int = 100,
+            isCharging: Boolean = false
+        ) {
+            _currentBatteryMode.value = mode
+            _batteryLevel.value = batteryPct
+            _isDeviceCharging.value = isCharging
+            activeServiceInstance?.applyModeInternal(mode)
+        }
 
         var activeServiceInstance: MMAssistantForegroundService? = null
             private set
@@ -127,6 +149,9 @@ class MMAssistantForegroundService : Service() {
 
         audioPlayer = AudioStreamPlayer(sampleRate = 24000)
 
+        val interactionRepo = com.example.data.local.InteractionRepository.getInstance(applicationContext)
+        val settingsDataStore = com.example.data.MMSettingsDataStore.getInstance(applicationContext)
+
         geminiClient = GeminiLiveClient(
             deviceToolManager = toolManager,
             onAudioOutputChunk = { pcmChunk ->
@@ -137,7 +162,21 @@ class MMAssistantForegroundService : Service() {
             onInterrupted = {
                 audioPlayer.interrupt()
             }
-        )
+        ).apply {
+            setInteractionRepository(interactionRepo)
+        }
+
+        // Schedule WorkManager battery optimization monitor
+        com.example.work.BatteryWorkManagerScheduler.schedulePeriodicBatteryMonitoring(applicationContext)
+        com.example.work.BatteryWorkManagerScheduler.triggerImmediateCheck(applicationContext)
+
+        // Dynamically reflect Sassiness Level and cached Room context into Gemini Live instructions
+        scope.launch {
+            settingsDataStore.sassinessLevel.collect { level ->
+                val cachedContext = interactionRepo.getRecentInteractionsContext()
+                geminiClient.updateSystemPrompt(level, cachedContext)
+            }
+        }
 
         wakeWordDetector = WakeWordDetector(
             sensitivity = 0.65f,
@@ -227,6 +266,21 @@ class MMAssistantForegroundService : Service() {
             }
         }
         return START_STICKY
+    }
+
+    fun applyModeInternal(mode: BatteryOptimizationMode) {
+        Log.d(TAG, "Dynamic wake-word optimization applied: ${mode.name}, pollingDelay=${mode.pollingDelayMs}ms, sensitivity=${mode.sensitivity}")
+        try {
+            if (::audioRecorder.isInitialized) {
+                audioRecorder.setBufferSleepDelay(mode.pollingDelayMs)
+            }
+            if (::wakeWordDetector.isInitialized) {
+                wakeWordDetector.setSensitivity(mode.sensitivity)
+            }
+            updateNotification()
+        } catch (e: Exception) {
+            Log.e(TAG, "Failed applying battery mode internal", e)
+        }
     }
 
     private fun startForegroundServiceInternal() {

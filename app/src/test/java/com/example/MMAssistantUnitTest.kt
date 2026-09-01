@@ -283,4 +283,90 @@ class MMAssistantUnitTest {
         )
         assertEquals(com.example.model.SassyMood.CHARMING_SASSY, charmingMood)
     }
+
+    @Test
+    fun testRoomDatabaseInteractionCacheLimit10() = runBlocking {
+        val context = RuntimeEnvironment.getApplication()
+        val repo = com.example.data.local.InteractionRepository.getInstance(context)
+        repo.clearHistory()
+
+        // Insert 12 interactions
+        for (i in 1..12) {
+            repo.saveInteraction(
+                userPrompt = "User Prompt $i",
+                assistantResponse = "Assistant Response $i",
+                toolUsed = if (i % 2 == 0) "tool_$i" else null,
+                sassinessLevel = "sassy"
+            )
+        }
+
+        val recent = repo.getRecentInteractions()
+        // Must be capped at exactly 10
+        assertEquals(10, recent.size)
+        // Most recent should be prompt 12
+        assertEquals("User Prompt 12", recent.first().userPrompt)
+        // 10th should be prompt 3 (1 and 2 pruned)
+        assertEquals("User Prompt 3", recent.last().userPrompt)
+
+        val contextStr = repo.getRecentInteractionsContext()
+        assertTrue(contextStr.contains("RECENT CONVERSATION HISTORY (LAST 10 TURNS FOR CONTEXT RECALL)"))
+        assertTrue(contextStr.contains("User Prompt 12"))
+
+        repo.clearHistory()
+        assertEquals(0, repo.getRecentInteractions().size)
+    }
+
+    @Test
+    fun testBatteryOptimizationModeDutyCycles() {
+        val highPerf = com.example.model.BatteryOptimizationMode.HIGH_PERFORMANCE
+        assertEquals(0L, highPerf.pollingDelayMs)
+        assertEquals(0.65f, highPerf.sensitivity, 0.01f)
+
+        val balanced = com.example.model.BatteryOptimizationMode.BALANCED_SAVER
+        assertEquals(25L, balanced.pollingDelayMs)
+        assertEquals(0.60f, balanced.sensitivity, 0.01f)
+
+        val ultra = com.example.model.BatteryOptimizationMode.ULTRA_BATTERY_SAVER
+        assertEquals(60L, ultra.pollingDelayMs)
+        assertEquals(0.55f, ultra.sensitivity, 0.01f)
+    }
+
+    @Test
+    fun testSassinessLevelsAndPrompts() {
+        val polite = com.example.model.SassinessLevel.POLITE
+        assertEquals("Polite & Professional", polite.displayName)
+        assertTrue(polite.promptDirective.contains("Courteous"))
+
+        val ultra = com.example.model.SassinessLevel.ULTRA_SASSY
+        assertEquals("Ultra-Sassy & Sharp", ultra.displayName)
+        assertTrue(ultra.promptDirective.contains("Zero tolerance for laziness"))
+
+        val systemPrompt = com.example.gemini.GeminiInstructionManager.buildSystemInstruction(
+            sassinessLevel = com.example.model.SassinessLevel.ULTRA_SASSY,
+            cachedHistoryContext = "Cached context test"
+        )
+        assertTrue(systemPrompt.contains("Ultra-Sassy & Sharp"))
+        assertTrue(systemPrompt.contains("Cached context test"))
+    }
+
+    @Test
+    fun testWakeWordWorkManagerSchedulerConstants() {
+        assertEquals("mm_wake_word_background_monitor", com.example.work.WakeWordBackgroundWorker.PERIODIC_WORK_NAME)
+        assertEquals("mm_wake_word_immediate_activation", com.example.work.WakeWordBackgroundWorker.ONE_TIME_WORK_NAME)
+        assertEquals("key_trigger_wake_activation", com.example.work.WakeWordBackgroundWorker.KEY_TRIGGER_WAKE)
+
+        val context = RuntimeEnvironment.getApplication()
+        com.example.work.WakeWordWorkManagerScheduler.schedulePeriodicWakeWordMonitoring(context)
+        com.example.work.WakeWordWorkManagerScheduler.triggerImmediateWakeWordActivation(context, activateAssistant = false)
+        com.example.work.WakeWordWorkManagerScheduler.cancelWakeWordWork(context)
+    }
+
+    @Test
+    fun testAssistantListeningStateValues() {
+        val listeningState = com.example.model.AssistantState.LISTENING
+        assertEquals("Listening...", listeningState.label)
+
+        val speakingState = com.example.model.AssistantState.SPEAKING
+        assertEquals("MM is talking...", speakingState.label)
+    }
 }

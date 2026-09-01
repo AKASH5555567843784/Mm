@@ -44,7 +44,6 @@ class GeminiLiveClient(
 
     var selectedModel: String = DEFAULT_MODEL
     var temperature: Float = 0.3f
-    var sassyIntensity: com.example.model.SassyIntensity = com.example.model.SassyIntensity.CLASSIC_SASSY
 
     private val scope = CoroutineScope(Dispatchers.IO)
     private val okHttpClient = OkHttpClient.Builder()
@@ -70,25 +69,37 @@ class GeminiLiveClient(
     private val _sassyOneLiner = MutableStateFlow(GeminiInstructionManager.SASSY_GREETINGS.first())
     val sassyOneLiner: StateFlow<String> = _sassyOneLiner.asStateFlow()
 
-    private var systemPrompt = GeminiInstructionManager.buildSystemInstruction(sassyIntensity = sassyIntensity)
+    private var sassinessLevel: com.example.model.SassinessLevel = com.example.model.SassinessLevel.SASSY
+    private var systemPrompt = GeminiInstructionManager.buildSystemInstruction(sassinessLevel = sassinessLevel)
+    private var interactionRepository: com.example.data.local.InteractionRepository? = null
 
-    fun updateConfig(
-        model: String = selectedModel,
-        temp: Float = temperature,
-        intensity: com.example.model.SassyIntensity = sassyIntensity
-    ) {
-        selectedModel = model
-        temperature = temp.coerceIn(0.0f, 1.0f)
-        sassyIntensity = intensity
-        systemPrompt = GeminiInstructionManager.buildSystemInstruction(sassyIntensity = intensity)
+    private var lastRecordedUserPrompt: String = ""
+    private val currentTurnResponseBuilder = java.lang.StringBuilder()
+    private var lastExecutedToolName: String? = null
+
+    fun setInteractionRepository(repository: com.example.data.local.InteractionRepository) {
+        this.interactionRepository = repository
+    }
+
+    fun updateSystemPrompt(level: com.example.model.SassinessLevel, cachedHistory: String = "") {
+        this.sassinessLevel = level
+        this.systemPrompt = GeminiInstructionManager.buildSystemInstruction(
+            sassinessLevel = level,
+            cachedHistoryContext = cachedHistory
+        )
         if (isConnected) {
             disconnect()
             connect()
         }
     }
 
-    fun clearTranscripts() {
-        _transcripts.value = emptyList()
+    fun updateConfig(model: String, temp: Float) {
+        selectedModel = model
+        temperature = temp.coerceIn(0.0f, 1.0f)
+        if (isConnected) {
+            disconnect()
+            connect()
+        }
     }
 
     fun connect() {
@@ -707,6 +718,7 @@ class GeminiLiveClient(
                             val text = part.getString("text").trim()
                             if (text.isNotEmpty()) {
                                 _sassyOneLiner.value = text
+                                currentTurnResponseBuilder.append(text).append(" ")
                                 addTranscript(LiveTranscript.Sender.MM, text)
                             }
                         }
@@ -715,6 +727,24 @@ class GeminiLiveClient(
 
                 if (serverContent.optBoolean("turnComplete", false)) {
                     _assistantState.value = AssistantState.LISTENING
+
+                    val prompt = lastRecordedUserPrompt
+                    val response = currentTurnResponseBuilder.toString().trim()
+                    val tool = lastExecutedToolName
+                    if (prompt.isNotBlank() && response.isNotBlank()) {
+                        interactionRepository?.let { repo ->
+                            scope.launch {
+                                repo.saveInteraction(
+                                    userPrompt = prompt,
+                                    assistantResponse = response,
+                                    toolUsed = tool,
+                                    sassinessLevel = sassinessLevel.id
+                                )
+                            }
+                        }
+                    }
+                    currentTurnResponseBuilder.clear()
+                    lastExecutedToolName = null
                 }
             }
 
@@ -907,6 +937,10 @@ class GeminiLiveClient(
      * Send direct user text/voice trigger (e.g. from quick chips).
      */
     fun sendUserPrompt(prompt: String) {
+        lastRecordedUserPrompt = prompt
+        currentTurnResponseBuilder.clear()
+        lastExecutedToolName = null
+
         addTranscript(LiveTranscript.Sender.USER, prompt)
         if (!isConnected) {
             connect()

@@ -41,9 +41,15 @@ class AudioRecordStreamer(
     val inputAmplitude: StateFlow<Float> = _inputAmplitude.asStateFlow()
 
     private var isMuted = false
+    private var bufferSleepDelayMs = 0L
 
     fun setMuted(muted: Boolean) {
         isMuted = muted
+    }
+
+    fun setBufferSleepDelay(delayMs: Long) {
+        bufferSleepDelayMs = delayMs.coerceIn(0L, 200L)
+        Log.d(TAG, "AudioRecordStreamer buffer sleep delay set to: ${bufferSleepDelayMs}ms")
     }
 
     @Synchronized
@@ -93,6 +99,9 @@ class AudioRecordStreamer(
                         } else {
                             _inputAmplitude.value = 0f
                         }
+                    }
+                    if (bufferSleepDelayMs > 0L) {
+                        kotlinx.coroutines.delay(bufferSleepDelayMs)
                     }
                 }
             }

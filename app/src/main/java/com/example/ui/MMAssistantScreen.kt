@@ -31,6 +31,7 @@ import com.example.ui.components.AssistantBottomRevealSheet
 import com.example.ui.components.NeonGlowingEdgeOverlay
 import androidx.compose.material.icons.filled.Memory
 import androidx.compose.material.icons.filled.PowerSettingsNew
+import androidx.compose.material.icons.filled.Tune
 import androidx.compose.material3.CenterAlignedTopAppBar
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
@@ -56,6 +57,8 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.core.content.ContextCompat
+import androidx.compose.material.icons.filled.GraphicEq
+import com.example.ui.components.MinimalActiveListeningScreen
 import com.example.model.AssistantState
 import com.example.ui.components.AssistantBottomControlBar
 import com.example.ui.components.GlowingVoiceOrb
@@ -146,6 +149,17 @@ fun MMAssistantScreen(
     val sassyIntensity by viewModel.sassyIntensity.collectAsState()
     val transcripts by viewModel.transcripts.collectAsState()
 
+    // Sassiness Level, Room 10-turn Cache, and Battery Optimizer States
+    val sassinessLevel by viewModel.sassinessLevel.collectAsState()
+    val isBatteryAdaptiveEnabled by viewModel.isBatteryAdaptiveEnabled.collectAsState()
+    val currentBatteryMode by viewModel.currentBatteryOptimizationMode.collectAsState()
+    val batteryPct by viewModel.currentBatteryPct.collectAsState()
+    val isDeviceCharging by viewModel.isDeviceCharging.collectAsState()
+    val cachedInteractions by viewModel.cachedInteractions.collectAsState()
+    val showSettingsDialog by viewModel.showSettingsDialog.collectAsState()
+
+    val isMinimalListeningMode by viewModel.isMinimalListeningMode.collectAsState()
+
     var isSettingsOpen by remember { mutableStateOf(false) }
     var showRevealPreview by remember { mutableStateOf(false) }
 
@@ -160,7 +174,22 @@ fun MMAssistantScreen(
     } else true
 
     Box(modifier = modifier.fillMaxSize()) {
-        Scaffold(
+        if (isMinimalListeningMode) {
+            MinimalActiveListeningScreen(
+                assistantState = assistantState,
+                audioAmplitude = combinedAmplitude,
+                sassyQuote = sassyQuote,
+                sassyMood = sassyMood,
+                isMuted = isMuted,
+                isServiceRunning = isServiceRunning,
+                onToggleMute = { viewModel.toggleMute() },
+                onMicTap = { viewModel.onMicOrbTapped() },
+                onSwitchToDashboard = { viewModel.setMinimalListeningMode(false) },
+                onOpenSettings = { isSettingsOpen = true },
+                modifier = Modifier.fillMaxSize()
+            )
+        } else {
+            Scaffold(
             topBar = {
                 CenterAlignedTopAppBar(
                     title = {
@@ -231,6 +260,18 @@ fun MMAssistantScreen(
                         }
                     },
                     actions = {
+                        // MM Control Panel (Sassiness, Battery WorkManager, Room Cache)
+                        IconButton(
+                            onClick = { viewModel.openSettingsDialog() },
+                            modifier = Modifier.testTag("top_bar_settings_button")
+                        ) {
+                            Icon(
+                                imageVector = androidx.compose.material.icons.Icons.Default.Tune,
+                                contentDescription = "MM Assistant Control Panel",
+                                tint = sassyMood.primaryColor
+                            )
+                        }
+
                         // Quick Guide & Onboarding Overlay Trigger
                         IconButton(
                             onClick = { viewModel.showOnboardingOverlay() },
@@ -240,6 +281,18 @@ fun MMAssistantScreen(
                                 imageVector = Icons.AutoMirrored.Filled.HelpOutline,
                                 contentDescription = "Voice & Sassy Mood Guide",
                                 tint = sassyMood.primaryColor.copy(alpha = 0.85f)
+                            )
+                        }
+
+                        // Minimal Audio-Wave Active Listening Mode Toggle
+                        IconButton(
+                            onClick = { viewModel.setMinimalListeningMode(true) },
+                            modifier = Modifier.testTag("top_bar_wave_mode_button")
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.GraphicEq,
+                                contentDescription = "Minimal Listening Audio-Wave Mode",
+                                tint = NeonCyan
                             )
                         }
 
@@ -389,6 +442,7 @@ fun MMAssistantScreen(
                     )
                 }
             }
+        }
         }
 
         // Dedicated Settings Modal / BottomSheet
@@ -543,6 +597,23 @@ fun MMAssistantScreen(
                 onDismiss = {
                     viewModel.dismissPermissionsDialog()
                 }
+            )
+        }
+
+        // MM Sassiness, Room Cache, and Battery WorkManager Control Panel Dialog
+        if (showSettingsDialog) {
+            MMSettingsDialog(
+                currentSassinessLevel = sassinessLevel,
+                onSelectSassinessLevel = { viewModel.setSassinessLevel(it) },
+                isBatteryAdaptiveEnabled = isBatteryAdaptiveEnabled,
+                onToggleBatteryAdaptive = { viewModel.setBatteryAdaptiveEnabled(it) },
+                currentBatteryMode = currentBatteryMode,
+                batteryPct = batteryPct,
+                isDeviceCharging = isDeviceCharging,
+                onTriggerBatteryCheck = { viewModel.triggerBatteryOptimizationCheck() },
+                cachedInteractions = cachedInteractions,
+                onClearInteractions = { viewModel.clearInteractionHistory() },
+                onDismiss = { viewModel.closeSettingsDialog() }
             )
         }
     }

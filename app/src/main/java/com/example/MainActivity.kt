@@ -87,6 +87,7 @@ class MainActivity : ComponentActivity() {
         val wasWakeTriggered = intent.getBooleanExtra("WAKE_TRIGGERED", false)
         if (wasWakeTriggered) {
             viewModel.startBackgroundService()
+            viewModel.wakeUpFromStandby()
         }
     }
 }

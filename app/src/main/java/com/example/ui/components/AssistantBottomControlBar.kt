@@ -58,6 +58,7 @@ import com.example.ui.theme.LocalSassyMood
 import com.example.ui.theme.TextPrimary
 import com.example.ui.theme.TextSecondary
 import com.example.ui.theme.TextTertiary
+import com.example.ui.util.singleClickable
 
 @Composable
 fun AssistantBottomControlBar(
@@ -129,9 +130,10 @@ fun AssistantBottomControlBar(
                 horizontalAlignment = Alignment.CenterHorizontally,
                 modifier = Modifier
                     .clip(RoundedCornerShape(16.dp))
-                    .clickable(
+                    .singleClickable(
                         interactionSource = remember { MutableInteractionSource() },
                         indication = ripple(bounded = true, color = Color.White),
+                        debounceMs = 450L,
                         onClick = onToggleMute
                     )
                     .padding(horizontal = 12.dp, vertical = 6.dp)
@@ -207,9 +209,10 @@ fun AssistantBottomControlBar(
                             color = Color.White.copy(alpha = 0.8f),
                             shape = CircleShape
                         )
-                        .clickable(
+                        .singleClickable(
                             interactionSource = remember { MutableInteractionSource() },
                             indication = ripple(bounded = true, color = Color.White),
+                            debounceMs = 450L,
                             onClick = onMicTap
                         )
                         .testTag("center_voice_action_button"),
@@ -234,9 +237,10 @@ fun AssistantBottomControlBar(
                 horizontalAlignment = Alignment.CenterHorizontally,
                 modifier = Modifier
                     .clip(RoundedCornerShape(16.dp))
-                    .clickable(
+                    .singleClickable(
                         interactionSource = remember { MutableInteractionSource() },
                         indication = ripple(bounded = true, color = Color.White),
+                        debounceMs = 450L,
                         onClick = onOpenSettings
                     )
                     .padding(horizontal = 12.dp, vertical = 6.dp)

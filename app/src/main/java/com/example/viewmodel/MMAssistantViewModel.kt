@@ -3,6 +3,7 @@ package com.example.viewmodel
 import android.app.Application
 import android.content.Context
 import android.content.pm.PackageManager
+import android.os.SystemClock
 import androidx.core.content.ContextCompat
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
@@ -63,6 +64,44 @@ class MMAssistantViewModel(application: Application) : AndroidViewModel(applicat
     private val appPrefs = context.getSharedPreferences("mm_assistant_prefs", Context.MODE_PRIVATE)
     private val _showOnboardingOverlay = MutableStateFlow(!appPrefs.getBoolean("has_seen_first_launch_onboarding", false))
     val showOnboardingOverlay: StateFlow<Boolean> = _showOnboardingOverlay.asStateFlow()
+
+    // Room Database Interaction Cache & Preferences DataStore
+    val interactionRepository = com.example.data.local.InteractionRepository.getInstance(context)
+    val settingsDataStore = com.example.data.MMSettingsDataStore.getInstance(context)
+
+    val cachedInteractions: StateFlow<List<com.example.data.local.InteractionEntity>> = interactionRepository.recentInteractions
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+
+    val interactionCount: StateFlow<Int> = interactionRepository.interactionCount
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), 0)
+
+    val sassinessLevel: StateFlow<com.example.model.SassinessLevel> = settingsDataStore.sassinessLevel
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), com.example.model.SassinessLevel.SASSY)
+
+    val isBatteryAdaptiveEnabled: StateFlow<Boolean> = settingsDataStore.isBatteryAdaptiveWakeWordEnabled
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), true)
+
+    val isInteractionCacheEnabled: StateFlow<Boolean> = settingsDataStore.isInteractionCacheEnabled
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), true)
+
+    val currentBatteryOptimizationMode: StateFlow<com.example.model.BatteryOptimizationMode> = MMAssistantForegroundService.currentBatteryMode
+    val currentBatteryPct: StateFlow<Int> = MMAssistantForegroundService.batteryLevel
+    val isDeviceCharging: StateFlow<Boolean> = MMAssistantForegroundService.isDeviceCharging
+
+    private val _showSettingsDialog = MutableStateFlow(false)
+    val showSettingsDialog: StateFlow<Boolean> = _showSettingsDialog.asStateFlow()
+
+    // Dedicated Minimal Listening Screen Mode State
+    private val _isMinimalListeningMode = MutableStateFlow(false)
+    val isMinimalListeningMode: StateFlow<Boolean> = _isMinimalListeningMode.asStateFlow()
+
+    fun toggleListeningScreenMode() {
+        _isMinimalListeningMode.value = !_isMinimalListeningMode.value
+    }
+
+    fun setMinimalListeningMode(enabled: Boolean) {
+        _isMinimalListeningMode.value = enabled
+    }
 
     // Permissions onboarding state
     private val _showPermissionsDialog = MutableStateFlow(false)
@@ -506,10 +545,13 @@ class MMAssistantViewModel(application: Application) : AndroidViewModel(applicat
 
     fun startBackgroundService() {
         MMAssistantForegroundService.startService(context)
+        com.example.work.WakeWordWorkManagerScheduler.schedulePeriodicWakeWordMonitoring(context)
+        com.example.work.BatteryWorkManagerScheduler.schedulePeriodicBatteryMonitoring(context)
     }
 
     fun stopBackgroundService() {
         MMAssistantForegroundService.stopService(context)
+        com.example.work.WakeWordWorkManagerScheduler.cancelWakeWordWork(context)
     }
 
     fun toggleService() {
@@ -579,7 +621,16 @@ class MMAssistantViewModel(application: Application) : AndroidViewModel(applicat
         MMAssistantForegroundService.activeServiceInstance?.setWakeWordSensitivity(value)
     }
 
+    private var lastMicTapTime = 0L
+    private var lastPromptSendTime = 0L
+    private var lastToolExecTime = 0L
+    private var lastServiceToggleTime = 0L
+
     fun onMicOrbTapped() {
+        val now = SystemClock.elapsedRealtime()
+        if (now - lastMicTapTime < 450L) return
+        lastMicTapTime = now
+
         val isOnline = networkMonitor.isOnline.value && !_forceOfflineMode.value
         if (isOnline) {
             val service = MMAssistantForegroundService.activeServiceInstance
@@ -606,6 +657,10 @@ class MMAssistantViewModel(application: Application) : AndroidViewModel(applicat
     }
 
     fun sendQuickPrompt(prompt: String) {
+        val now = SystemClock.elapsedRealtime()
+        if (now - lastPromptSendTime < 450L) return
+        lastPromptSendTime = now
+
         val isOnline = networkMonitor.isOnline.value && !_forceOfflineMode.value
         if (isOnline) {
             val service = MMAssistantForegroundService.activeServiceInstance
@@ -808,6 +863,48 @@ class MMAssistantViewModel(application: Application) : AndroidViewModel(applicat
         isFlashlightOn = !isFlashlightOn
         val res = toolManager.toggleFlashlight(isFlashlightOn)
         _localSassyQuote.value = res.message
+    }
+
+    // Sassiness Level, Room Cache, and Battery Optimizer Controls
+    fun setSassinessLevel(level: com.example.model.SassinessLevel) {
+        viewModelScope.launch {
+            settingsDataStore.setSassinessLevel(level)
+            _localSassyQuote.value = "Sassiness set to [${level.displayName}]: ${level.exampleQuote}"
+        }
+    }
+
+    fun setBatteryAdaptiveEnabled(enabled: Boolean) {
+        viewModelScope.launch {
+            settingsDataStore.setBatteryAdaptiveWakeWord(enabled)
+            if (enabled) {
+                com.example.work.BatteryWorkManagerScheduler.triggerImmediateCheck(context)
+            }
+        }
+    }
+
+    fun setInteractionCacheEnabled(enabled: Boolean) {
+        viewModelScope.launch {
+            settingsDataStore.setInteractionCacheEnabled(enabled)
+        }
+    }
+
+    fun clearInteractionHistory() {
+        viewModelScope.launch {
+            interactionRepository.clearHistory()
+            _localSassyQuote.value = "Cleared all cached interaction memory from Room, Boss."
+        }
+    }
+
+    fun triggerBatteryOptimizationCheck() {
+        com.example.work.BatteryWorkManagerScheduler.triggerImmediateCheck(context)
+    }
+
+    fun openSettingsDialog() {
+        _showSettingsDialog.value = true
+    }
+
+    fun closeSettingsDialog() {
+        _showSettingsDialog.value = false
     }
 
     override fun onCleared() {

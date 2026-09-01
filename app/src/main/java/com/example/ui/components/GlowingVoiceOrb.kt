@@ -41,6 +41,7 @@ import androidx.compose.ui.graphics.drawscope.DrawScope
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.unit.dp
+import com.example.ui.util.singleClickable
 import com.example.model.AssistantState
 import com.example.model.SassyMood
 import com.example.ui.theme.DarkSurface
@@ -347,9 +348,10 @@ fun GlowingVoiceOrb(
                 .size(76.dp)
                 .clip(CircleShape)
                 .background(DarkSurface.copy(alpha = 0.65f))
-                .clickable(
+                .singleClickable(
                     interactionSource = remember { MutableInteractionSource() },
                     indication = null,
+                    debounceMs = 450L,
                     onClick = onTap
                 )
                 .testTag("orb_touch_target"),

@@ -23,6 +23,7 @@ import com.example.ui.theme.DarkSurfaceVariant
 import com.example.ui.theme.NeonCyan
 import com.example.ui.theme.NeonMagenta
 import com.example.ui.theme.TextPrimary
+import com.example.ui.util.ClickDebouncer
 
 @Composable
 fun VoiceQuickChips(
@@ -41,7 +42,7 @@ fun VoiceQuickChips(
     ) {
         suggestions.forEachIndexed { index, text ->
             AssistChip(
-                onClick = { onChipSelected(text) },
+                onClick = ClickDebouncer.debounce(450L) { onChipSelected(text) },
                 label = {
                     Text(
                         text = text,
@@ -68,3 +69,4 @@ fun VoiceQuickChips(
         }
     }
 }
+
